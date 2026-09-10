@@ -1,0 +1,95 @@
+version: "1.3.0"
+
+# Spacing, punctuation and hyphenation corrections. Exact pairs only.
+# variant -> canonical. Approved 2026-08-28.
+rules:
+  # --- v1.0.0 seed ---
+  powerbi: power bi
+  data modelling: data modeling
+
+  # --- A. split compound names -> standard form ---
+  java script: javascript
+  lang chain: langchain
+  lang graph: langgraph
+  lang smith: langsmith
+  llama index: llamaindex
+  big query: bigquery
+  data bricks: databricks
+  dynamo db: dynamodb
+  cloud formation: cloudformation
+  elastic search: elasticsearch
+  fast api: fastapi
+  go lang: golang
+  scikitlearn: scikit-learn
+  pg vector: pgvector
+  vertexai: vertex ai
+  cursorai: cursor ai
+  one lake: onelake
+  lookerstudio: looker studio
+  huggingface: hugging face
+  huggingface transformers: hugging face transformers
+  powerapps: power apps
+  qliksense: qlik sense
+  qlik view: qlikview
+  vs code: vscode
+
+  # --- B. hyphenation variants -> canonical ---
+  finetuning: fine-tuning
+  model finetuning: model fine-tuning
+  cyber security: cybersecurity
+  ecommerce: e-commerce
+  micro-services: microservices
+  back end development: backend development
+  back-end services: backend services
+  front-end development: frontend development
+  multi-modal ai: multimodal ai
+  multi-modal models: multimodal models
+  map-reduce: mapreduce
+  re-ranking: reranking
+  nonrelational databases: non-relational databases
+  no-sql databases: nosql databases
+  auto-encoders: autoencoders
+  de-duplication: deduplication
+  hyper-parameter tuning: hyperparameter tuning
+  meta-data management: metadata management
+  v-lookup: vlookup
+  k-nn: knn
+  multi-threading: multithreading
+  pretraining: pre-training
+  software development lifecycle: software development life cycle
+
+  # --- C. spacing around punctuation ---
+  ros 2: ros2
+  soc2: soc 2
+  html 5: html5
+  ci-cd: ci/cd
+  cicd: ci/cd
+
+  # --- D. v1.3.0: incorrectly split compound product/technical terms, where
+  # the joined form is the standard spelling AND already occurs in the data.
+  # Approved 2026-08-28. Cases where the SPLIT is standard (spark sql, onnx
+  # runtime, ab initio, ...) were reviewed and deliberately NOT joined.
+  lake house: lakehouse
+  ml ops: mlops
+  dev ops: devops
+  llm ops: llmops
+  guard rails: guardrails
+  open telemetry: opentelemetry
+  graph rag: graphrag
+  ai ops: aiops
+  r studio: rstudio
+  circle ci: circleci
+  back testing: backtesting
+  data sets: datasets
+  big table: bigtable
+  auto ml: automl
+  pydantic ai: pydanticai
+  agent core: agentcore
+  causal ml: causalml
+  snap logic: snaplogic
+  model ops: modelops
+  neural prophet: neuralprophet
+  db visualizer: dbvisualizer
+  site catalyst: sitecatalyst
+  arc sde: arcsde
+  paged attention: pagedattention

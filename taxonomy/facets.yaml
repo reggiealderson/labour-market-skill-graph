@@ -1,0 +1,436 @@
+# Stage G — facet layer
+#
+# SCHEMA SCAFFOLD ONLY. Facet content is written by hand by the user.
+# Do not add, propose, seed, or draft facets or facet values in this file by
+# any automated step. The single entry below is a blank template, not a facet.
+#
+# ---------------------------------------------------------------------------
+# What a facet is
+#   A facet is an orthogonal dimension defined OVER CONCEPTS. It reads concept
+#   properties only (concept label, surface forms, Stage D type). A facet must
+#   NOT read Stage F category assignments: concept_category.csv is not an input,
+#   and no facet rule may reference a category id.
+#
+#   Facet content is corpus-independent. It must apply to any year in scope,
+#   not only 2026. No rule may name a specific year or a corpus artefact.
+#
+#   All facet rule content lives here, in versioned YAML, never in Python.
+#
+# id scheme
+#   facet_<slug>   slug is lower snake_case: ^facet_[a-z0-9]+(_[a-z0-9]+)*$
+#   value slug     lower snake_case: ^[a-z0-9]+(_[a-z0-9]+)*$
+#   ids are stable and never reused. Change the scheme in
+#   tools/validate_facets.py (FACET_ID_SCHEME) if this convention changes.
+#
+# per-facet fields
+#   id          : string, unique, matches the facet id scheme above.
+#   label       : string, human name.
+#   definition  : string, required. What dimension this facet measures.
+#   applies_to  : string, required. Which concepts the facet ranges over,
+#                 described by concept property, never by category or corpus.
+#   inputs      : list of allowed concept-property sources this facet reads.
+#                 Allowed: concept_label, surface_form, stage_d_type.
+#                 concept_category (and any category source) is forbidden.
+#                 Required.
+#   exclusivity : string, required. How many values one concept may take.
+#                 Allowed values:
+#                   exclusive    : at most one value per concept, resolved by
+#                                  the precedence field below.
+#                   multi_valued : a concept may take every value it matches.
+#   unmatched   : string, required. What a concept inside applies_to takes when
+#                 it matches no value. Allowed values:
+#                   absent    : the facet is simply not set for that concept.
+#                   declared  : the facet takes the fallback_value field below.
+#   assignment  : string, optional. How concepts get their values for this facet.
+#                 Allowed values:
+#                   pattern    : values are assigned by the match rules in this
+#                                file. Every value must have a non-empty match
+#                                block (except fallback_value). This is the
+#                                default when assignment is omitted.
+#                   classifier : values are assigned by an external classifier
+#                                (e.g. an LLM) whose output is stored in
+#                                concept_facet.csv. Match blocks are optional on
+#                                all values. The value definitions in this file
+#                                serve as the classification rubric.
+#   precedence  : list of value slugs. Required when — and only when —
+#                 exclusivity is exclusive. The facet's values in priority
+#                 order, highest first; the single winning value for a concept
+#                 that matches several is the earliest one listed here. Must
+#                 list every value in the facet exactly once, and name no slug
+#                 that is not a value in the facet. Omit it entirely when
+#                 exclusivity is multi_valued.
+#   fallback_value : a single value slug. Required when — and only when —
+#                 unmatched is declared. Names the value a concept inside
+#                 applies_to takes when it matches no value. Must name a value
+#                 in the facet. Omit it entirely when unmatched is absent.
+#   values      : list, at least one. Each value is a mapping:
+#                   - value      : string, value slug (scheme above).
+#                     label      : string, human name.
+#                     definition : string, required.
+#                     match      : mapping of rule keys over concept properties.
+#                                  Allowed keys ONLY:
+#                                    concept_label_matches : list of patterns
+#                                    surface_form_matches  : list of patterns
+#                                    stage_d_type_in       : list of Stage D types
+#                                  At least one non-empty rule key is required.
+#                                  No key or pattern may name a category id, a
+#                                  category source, or a specific year.
+#   notes       : optional string.
+#
+# Stage D types a rule may name in stage_d_type_in:
+#   language, library, tool, method, knowledge_area, practice,
+#   transversal_skill, compliance, industry_context
+# ---------------------------------------------------------------------------
+#
+# MATCH SEMANTICS  (decided 2026-09-02; global — no per-facet overrides)
+#   These rules govern how concept_label_matches and surface_form_matches
+#   patterns are interpreted. They apply to every facet. There is no per-facet
+#   override field: if a genuine need appears, add optional override fields then,
+#   as a backward-compatible change — do not build that scaffolding first.
+#
+#   pattern kind   : literal_substring. A pattern is a literal string, not a
+#                    regular expression. No regex metacharacters are honoured.
+#   case           : case_folded. Matching ignores letter case. Stage A already
+#                    lowercases every normalised form (0 of 15,029 carry any
+#                    uppercase), so this is a safety net — write patterns in
+#                    lowercase.
+#   anchoring      : whole_string. A pattern matches only when it equals the
+#                    whole matched string, end to end — NOT as a substring.
+#                    ("ai" matches the concept "ai", never "training" or
+#                    "email".) To match several forms, list one pattern each.
+#   matched string : normalised. Each pattern is tested against the Stage A
+#                    normalised form — concept_label_matches against the
+#                    normalised concept label, surface_form_matches against the
+#                    normalised surface form. The raw text is never matched.
+#
+# MULTI-MATCH  (decided — governs the exclusivity field above)
+#   Default habit multi_valued: a concept takes every value it matches, and
+#   precedence is omitted. Set a facet to exclusive only where a single winner
+#   is genuinely required, and then give that facet a precedence list.
+#
+# UNMATCHED  (decided — governs the unmatched field above)
+#   Default habit absent: a concept that matches no value simply has the facet
+#   unset. Set a facet to declared only where a fallback is genuinely required,
+#   and then name the fallback slug in that facet's fallback_value field.
+# ---------------------------------------------------------------------------
+
+version: 0.1.0
+frozen_at: null
+
+facets:
+  # -------------------------------------------------------------------------
+  # Facet 1 — AI relatedness (gate facet)
+  # -------------------------------------------------------------------------
+  - id: facet_ai_relatedness
+    label: AI relatedness
+    definition: >
+      Whether a concept belongs to the AI domain, directly supports AI work,
+      or has no particular connection to AI. This is the gate facet: other
+      AI-specific facets (technological wave, workflow role, vendor ecosystem)
+      apply only to concepts tagged core_ai or ai_adjacent here.
+    applies_to: >
+      All concepts, regardless of Stage D type.
+    inputs:
+      - concept_label
+      - surface_form
+      - stage_d_type
+    exclusivity: exclusive
+    precedence:
+      - core_ai
+      - ai_adjacent
+      - ai_independent
+    unmatched: declared
+    fallback_value: ai_independent
+    assignment: classifier
+    values:
+      - value: core_ai
+        label: Core AI
+        definition: >
+          The concept is an AI technique, model, architecture, framework,
+          library, or tool whose primary purpose is building, training,
+          serving, or interacting with artificial-intelligence systems.
+          Examples: deep learning, transformer architecture, PyTorch,
+          reinforcement learning, prompt engineering, large language model,
+          GPT, diffusion model, RAG, RLHF, computer vision, NLP.
+          It does not include roles, job titles, certifications, governance
+          frameworks, regulations, or application domains that use AI —
+          those belong in ai_adjacent.
+
+      - value: ai_adjacent
+        label: AI-adjacent
+        definition: >
+          The concept directly enables or supports AI work but is not itself
+          an AI technique or tool. It would exist without AI, yet is a
+          routine part of an AI practitioner's stack. Examples: data pipeline,
+          feature engineering, GPU computing, vector database, statistical
+          inference, experiment tracking, model monitoring, containerisation
+          for ML workloads. This also includes AI-related roles and job
+          titles (e.g. machine learning engineer, AI solution architect),
+          AI certifications and credentials (e.g. AWS AI Practitioner,
+          TensorFlow Developer Certificate), AI governance and regulatory
+          frameworks (e.g. EU AI Act, NIST AI RMF), and application domains
+          where AI is applied (e.g. healthcare AI, autonomous vehicles).
+
+      - value: ai_independent
+        label: AI-independent
+        definition: >
+          The concept has no particular connection to AI. It may appear in the
+          same job postings as AI skills, but its definition and use do not
+          depend on AI. Examples: SQL, project management, Agile, Excel,
+          business analysis, communication skills. This value is the fallback:
+          any concept that the classifier does not assign to core_ai or
+          ai_adjacent receives ai_independent automatically.
+    notes: >
+      Assignment is by classifier. The value definitions above serve as the
+      classification rubric. Match blocks are omitted because AI relatedness
+      cuts across thousands of concepts whose labels share no reliable common
+      substring — pattern matching would degrade into enumeration.
+
+  # -------------------------------------------------------------------------
+  # Facet 2 — AI technological wave (era facet)
+  # -------------------------------------------------------------------------
+  - id: facet_ai_wave
+    label: AI technological wave
+    definition: >
+      Which generation of AI technology a concept belongs to. Measures
+      whether demand is for classical ML techniques, neural-network-era
+      deep learning, or the current generative-AI wave. This facet applies
+      only to core_ai concepts — techniques, models, frameworks, and tools
+      — not to roles, certifications, governance, or application domains
+      (those are ai_adjacent and do not belong to a single wave).
+    applies_to: >
+      Concepts classified as core_ai by facet_ai_relatedness. Do not
+      classify ai_adjacent or ai_independent concepts.
+    inputs:
+      - concept_label
+      - surface_form
+    exclusivity: multi_valued
+    unmatched: absent
+    assignment: classifier
+    values:
+      - value: traditional_ml
+        label: Traditional ML
+        definition: >
+          Classical machine learning techniques and tools that predate the
+          deep-learning era. Includes supervised and unsupervised algorithms
+          (linear/logistic regression, decision trees, random forests, SVM,
+          k-means, PCA, gradient boosting), classical feature engineering,
+          and libraries built primarily for these methods (scikit-learn,
+          XGBoost, LightGBM). Does not include neural networks or any
+          technique that requires deep-learning frameworks.
+
+      - value: deep_learning
+        label: Deep learning
+        definition: >
+          Neural-network techniques, architectures, and frameworks from the
+          deep-learning era, prior to or independent of generative AI.
+          Includes CNNs, RNNs, LSTMs, attention mechanisms, embeddings,
+          computer vision (object detection, image classification), NLP
+          with learned representations (word2vec, BERT as an encoder), and
+          training frameworks used for these (PyTorch, TensorFlow, Keras,
+          JAX). A concept may carry both deep_learning and generative_ai
+          when the tool spans both eras (e.g. PyTorch, attention mechanism).
+
+      - value: generative_ai
+        label: Generative AI
+        definition: >
+          Large language models, diffusion models, foundation models, and
+          the tooling ecosystem built around them. Includes specific models
+          and families (GPT, Claude, Llama, Gemini, Stable Diffusion,
+          Midjourney), techniques for using or adapting them (prompt
+          engineering, RAG, fine-tuning of foundation models, RLHF, LoRA,
+          in-context learning), orchestration frameworks (LangChain,
+          LlamaIndex, Semantic Kernel), and inference/serving tools
+          specific to generative models (vLLM, text-generation-inference).
+          Does not include classical deep-learning architectures unless they
+          are primarily associated with generative use (e.g. transformer
+          architecture carries both deep_learning and generative_ai).
+    notes: >
+      Multi-valued: a concept like PyTorch or transformer architecture may
+      belong to both deep_learning and generative_ai. Unmatched is absent:
+      if a core_ai concept does not clearly belong to any wave (e.g. a
+      general optimisation algorithm used across eras), it simply has no
+      wave tag.
+
+  # -------------------------------------------------------------------------
+  # Facet 3 — AI workflow role (stack facet)
+  # -------------------------------------------------------------------------
+  - id: facet_ai_workflow
+    label: AI workflow role
+    definition: >
+      Where in the AI workflow a concept operates. Distinguishes data
+      preparation from model building from deployment from consumption.
+      This facet applies to core_ai and ai_adjacent concepts — anything
+      involved in AI work.
+    applies_to: >
+      Concepts classified as core_ai or ai_adjacent by facet_ai_relatedness.
+      Do not classify ai_independent concepts.
+    inputs:
+      - concept_label
+      - surface_form
+      - stage_d_type
+    exclusivity: multi_valued
+    unmatched: absent
+    assignment: classifier
+    values:
+      - value: data_layer
+        label: Data layer
+        definition: >
+          Concepts involved in collecting, cleaning, labelling, storing,
+          or preparing data for AI systems. Includes data pipelines, ETL
+          for ML, data labelling, feature stores, feature engineering,
+          vector databases, data versioning, embeddings-as-data, and data
+          quality tools used in AI contexts. Does not include general
+          database skills (those are ai_independent) unless they are
+          specifically oriented toward AI data workflows.
+
+      - value: model_layer
+        label: Model layer
+        definition: >
+          Concepts involved in designing, training, evaluating, or
+          fine-tuning AI models. Includes model architectures (CNNs, RNNs,
+          transformers), training techniques (backpropagation, gradient
+          descent, hyperparameter tuning, cross-validation), fine-tuning
+          and adaptation methods (LoRA, RLHF, transfer learning),
+          experiment tracking, model selection, and AutoML. The concept's
+          primary purpose is producing or improving a model.
+
+      - value: deployment_layer
+        label: Deployment layer
+        definition: >
+          Concepts involved in shipping, serving, monitoring, or
+          maintaining AI models in production. Includes MLOps, model
+          serving (TensorFlow Serving, Triton, vLLM), model monitoring
+          and observability, inference optimisation (quantisation,
+          distillation, pruning), CI/CD for models, containerisation for
+          ML workloads, A/B testing of models, and model registries.
+          The concept's primary purpose is getting a model to production
+          or keeping it running.
+
+      - value: consumption_layer
+        label: Consumption layer
+        definition: >
+          Concepts involved in using AI models through interfaces or APIs
+          rather than building or deploying them. Includes prompt
+          engineering, API-based AI integration (OpenAI API, Anthropic
+          API), RAG pipelines, AI-agent frameworks (LangChain, LlamaIndex,
+          AutoGen), AI-assisted development tools (Copilot, Cursor),
+          chatbot design, and no-code/low-code AI platforms. The concept's
+          primary purpose is consuming model capabilities, not producing
+          or serving models.
+    notes: >
+      Multi-valued: a concept like MLflow touches both model_layer and
+      deployment_layer. Unmatched is absent: concepts that do not clearly
+      sit in one layer (e.g. a general AI certification) simply have no
+      workflow tag.
+
+  # -------------------------------------------------------------------------
+  # Facet 4 — Vendor ecosystem (market facet)
+  # -------------------------------------------------------------------------
+  - id: facet_vendor_ecosystem
+    label: Vendor ecosystem
+    definition: >
+      Which commercial or open-source ecosystem a concept belongs to.
+      Measures vendor market share in skill demand. This facet applies
+      to core_ai and ai_adjacent concepts that are identifiably associated
+      with a vendor or open-source community. Vendor-neutral concepts
+      (e.g. backpropagation, data pipeline) receive no value.
+    applies_to: >
+      Concepts classified as core_ai or ai_adjacent by facet_ai_relatedness
+      that are identifiably associated with a vendor or ecosystem. Do not
+      classify ai_independent concepts.
+    inputs:
+      - concept_label
+      - surface_form
+    exclusivity: multi_valued
+    unmatched: absent
+    assignment: classifier
+    values:
+      - value: openai
+        label: OpenAI
+        definition: >
+          Products, models, APIs, and tools created or operated by OpenAI.
+          Includes GPT models (GPT-3, GPT-4, GPT-4o), ChatGPT, the OpenAI
+          API, DALL-E, Whisper (when accessed via OpenAI), Codex, and the
+          OpenAI platform. Does not include general concepts that merely
+          use OpenAI products (e.g. prompt engineering is a technique, not
+          an OpenAI product).
+
+      - value: google
+        label: Google
+        definition: >
+          AI products, models, and platforms created or operated by Google
+          or Alphabet subsidiaries (including DeepMind). Includes Gemini
+          models, Vertex AI, Google Cloud AI services, TensorFlow (as a
+          Google-originated project), Keras (as maintained by Google), TPU,
+          BERT (as a Google research output), PaLM, Bard, and Colab.
+
+      - value: anthropic
+        label: Anthropic
+        definition: >
+          Products, models, and APIs created or operated by Anthropic.
+          Includes Claude models, the Anthropic API, and Anthropic-specific
+          tooling and concepts (e.g. constitutional AI as an Anthropic
+          research contribution). Does not include general alignment or
+          safety concepts unless they are specifically branded as Anthropic
+          work.
+
+      - value: meta
+        label: Meta
+        definition: >
+          AI models, frameworks, and tools created or released by Meta
+          (Facebook). Includes Llama model family, PyTorch (as a
+          Meta-originated project), FAISS, and other Meta AI research
+          outputs. PyTorch carries both meta and open_source.
+
+      - value: microsoft
+        label: Microsoft
+        definition: >
+          AI products, platforms, and tools created or operated by
+          Microsoft. Includes Azure AI services, Azure Machine Learning,
+          Azure OpenAI Service (carries both microsoft and openai),
+          Copilot (GitHub Copilot, Microsoft 365 Copilot), Semantic Kernel,
+          ONNX Runtime, and DeepSpeed. Does not include general Azure
+          infrastructure unless it is AI-specific.
+
+      - value: aws
+        label: AWS
+        definition: >
+          AI and ML products and services operated by Amazon Web Services.
+          Includes SageMaker, Bedrock, AWS AI services (Rekognition,
+          Comprehend, Textract, Polly, Lex), and AWS-specific ML tooling.
+          Does not include general AWS infrastructure (EC2, S3) unless it
+          is specifically oriented toward AI/ML workloads.
+
+      - value: nvidia
+        label: NVIDIA
+        definition: >
+          AI hardware, software, and platform products created or operated
+          by NVIDIA. Includes GPU computing platforms and libraries (CUDA,
+          cuDNN, NCCL), inference and serving tools (TensorRT,
+          TensorRT-LLM, Triton Inference Server), AI enterprise platforms
+          (NVIDIA AI Enterprise, DGX, RAPIDS), and NVIDIA-specific model
+          tooling (NeMo, NeMo Guardrails). Does not include general GPU
+          concepts unless they are specifically NVIDIA-branded. A concept
+          may carry both nvidia and open_source when NVIDIA released it
+          as open source (e.g. RAPIDS).
+
+      - value: open_source
+        label: Open source
+        definition: >
+          AI tools, frameworks, models, and platforms maintained by
+          open-source communities or released under open licences without
+          a single dominant corporate owner. Includes Hugging Face (the
+          platform and its ecosystem), Mistral models, open-weight model
+          families not already covered by a vendor value, MLflow, Weights &
+          Biases (community edition), and community-maintained frameworks.
+          A concept may carry both a vendor tag and open_source when the
+          vendor released it as open source (e.g. PyTorch is meta +
+          open_source; TensorFlow is google + open_source).
+    notes: >
+      Multi-valued: a concept like Azure OpenAI Service carries both
+      microsoft and openai. PyTorch carries both meta and open_source.
+      NVIDIA products like TensorRT carry nvidia. Unmatched is absent:
+      vendor-neutral concepts (e.g. backpropagation, neural network,
+      data pipeline) simply have no vendor tag — this is correct, not
+      a gap.

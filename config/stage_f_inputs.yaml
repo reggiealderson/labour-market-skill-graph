@@ -1,0 +1,36 @@
+# Stage F input freeze — records exactly what Stage F assigns against.
+# categories.yaml is NEVER edited by Stage F; this file pins the version and
+# content hash it was run against, so a later change to the taxonomy is detectable.
+stage_e:
+  version: "1.0.0"
+  frozen_at: "2026-08-31T00:00:00+10:00"
+  categories_file: taxonomy/categories.yaml
+  categories_sha256: "55e9daede9a21eaaeebad98676a1f52e75aa4f2cce260855e423193ce972a28e"
+  category_count: 27
+
+concepts:
+  # Only typed (non-held) concepts are assigned; held concepts are excluded.
+  source: data/concepts/concept.csv
+  types: data/concepts/concept_type.csv
+  filter: "abstain == false"
+
+comparability:
+  # On the record (2026-08-31): Stage D and the Stage F pilot both ran on
+  # claude-haiku-4-5-20251001 (verified from concept_type.csv model_version and
+  # stage_f_pilot.csv). Model is NOT a source of non-comparability.
+  # The stability figures are still NOT directly comparable: Stage D stability
+  # (94.9%) is 3 runs agreeing on ONE type of 9; Stage F stability (pilot 93.8%)
+  # is 3 runs agreeing on the ENTIRE category SET of 27. Different option counts
+  # and a set-equality bar make Stage F stability structurally harder to hit;
+  # report side by side only with this caveat, never as a direct comparison.
+  stage_d_model: claude-haiku-4-5-20251001
+  stage_f_model: claude-haiku-4-5-20251001
+
+protocol:
+  prompt_version: "assign-v1.0.0"
+  model_version: "claude-haiku-4-5-20251001"
+  runs: 3
+  temperature: 0
+  batch_size: 40
+  assignment: "non-exclusive; minimise overlap"
+  vote: "a (concept,category) pair is accepted when it appears in >= 2 of 3 runs; stable = all 3 runs produced the identical category set"

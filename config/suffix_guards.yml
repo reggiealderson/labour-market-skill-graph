@@ -1,0 +1,41 @@
+version: "1.0.0"
+
+# Guards for the empty_suffixes.yml rules. A suffix rule must NOT fire if its
+# RESULT (the string after the suffix word is removed) matches a guard here.
+# Applied to EVERY suffix in empty_suffixes.yml, not to "tools" alone.
+#
+# Reason: in some forms the suffix word is the head noun, not an empty tail.
+# "ai-driven tools" -> "ai-driven" and "statistical tools" -> "statistical"
+# leave an adjective, not a skill. The guards block exactly those.
+
+# Pattern guards: block if the result ENDS WITH any of these strings. They are
+# hyphenated participles/adjectives that cannot stand alone as a skill name.
+pattern_guards:
+  - "-driven"
+  - "-assisted"
+  - "-enabled"
+  - "-powered"
+  - "-based"
+  - "-native"
+  - "-focused"
+  - "-led"
+  - "-first"
+
+# List guards: block if the result is an EXACT match for any of these. Bare
+# adjectives / role words that are not skills on their own.
+list_guards:
+  - statistical
+  - analytic
+  - analytical
+  - developer
+  - advanced
+  - modern
+  - open source
+  - enterprise
+  - internal
+  - external
+  # Added beyond the specified starter set: "ai tools" must stay intact — it is
+  # one of the emerging-concept forms step 3 handles with evidence spans, not a
+  # form to reduce to "ai" (and thence "artificial intelligence"). Guarding the
+  # bare result "ai" preserves "ai tools" while leaving bare "ai" free to alias.
+  - ai

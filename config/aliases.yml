@@ -1,0 +1,65 @@
+version: "1.2.0"
+
+# Acronym or variant -> one canonical form. Whole-string match only; does not
+# touch a form that merely contains the key as a substring or token.
+#
+# Chains are allowed and expected to cascade: "etl pipelines" -> "etl"
+# resolves over two engine iterations.
+#
+# CANONICAL DIRECTION RULE (set 2026-08-28): the canonical form is the term
+# used FAR MORE OFTEN in the raw surface-form counts, not automatically the
+# expansion. Where an acronym dominates its expansion in the corpus (aws 674 vs
+# 59, ci/cd 361 vs 0, etl 234 vs 5, ...), the acronym is the domain-standard
+# label and the expansion maps to it. Where the longer form dominates
+# (business intelligence 146 vs bi 12), it stays canonical. Borderline pairs
+# (kpis 8/7, pca 7/5, sso 4/2, knn 3/2) were reviewed and KEPT on the expansion:
+# the acronym was not "far more" common. Direction does not change groupings —
+# the same forms merge; only the surviving label differs.
+rules:
+  # --- acronym IS canonical (expansion folds into it) ---
+  amazon web services: aws
+  continuous integration and continuous deployment: ci/cd
+  extract, transform, load: etl
+  extract, load, transform: elt
+  machine learning operations: mlops
+  large language model operations: llmops
+  health insurance portability and accountability act: hipaa
+  transact-sql: t-sql
+  artificial intelligence and machine learning: ai/ml
+  identity and access management: iam
+  enterprise resource planning: erp
+  convolutional neural networks: cnns
+  optical character recognition: ocr
+  customer relationship management: crm
+  recurrent neural networks: rnns
+
+  # --- longer / word form IS canonical (acronym or short form folds in) ---
+  google cloud: google cloud platform
+  gen ai: generative ai
+  k8s: kubernetes
+  nlp: natural language processing
+  bi: business intelligence
+  ai: artificial intelligence
+  oop: object-oriented programming
+  vlms: vision-language models
+  sdlc: software development life cycle
+  xai: explainable ai
+  gnn: graph neural networks
+  dnn: deep neural networks
+  svm: support vector machines
+  glms: generalized linear models
+  rpa: robotic process automation
+  nlu: natural language understanding
+  asr: automatic speech recognition
+  # borderline, kept on the expansion (acronym not "far more" common)
+  kpis: key performance indicators
+  pca: principal component analysis
+  sso: single sign-on
+  knn: k-nearest neighbors
+  # abbreviated compound (both variants mean "vector databases")
+  vectordbs: vector databases
+  vector dbs: vector databases
+
+  # --- routing: suffix cases sent to their acronym, which is now canonical ---
+  etl pipelines: etl
+  ci/cd pipelines: ci/cd

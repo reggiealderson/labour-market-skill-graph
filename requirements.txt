@@ -1,0 +1,16 @@
+# Runtime dependencies for the skill-graph pipeline.
+#
+# The LLM stages (skill extraction, semantic merge, typing, category
+# assignment, facet classification) call the Anthropic API — set
+# ANTHROPIC_API_KEY in your environment.
+#
+# The blocking stage embeds skill forms LOCALLY with a pinned Hugging Face
+# model (intfloat/e5-small-v2, see config/embedding.yml). sentence-transformers
+# pulls in torch + transformers and downloads the model on first run. No
+# embedding API is used.
+
+anthropic>=0.40
+pyyaml>=6.0
+numpy>=1.24
+rapidfuzz>=3.0
+sentence-transformers>=2.2

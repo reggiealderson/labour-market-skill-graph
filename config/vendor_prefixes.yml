@@ -1,0 +1,29 @@
+version: "1.0.0"
+
+# Exact vendor-prefixed -> bare pairs. Full pairs only, never a generic
+# "strip this vendor word" rule — a vendor word is not safe to remove in
+# general (see the 9 pairs rejected during review, listed below for record).
+#
+# Rejected 2026-08-28, kept as two distinct forms, not written as pairs here:
+#   aws lambda / lambda       - "lambda" is also a generic programming concept
+#   aws bedrock / bedrock     - "bedrock" is an ordinary English word
+#   aws glue / glue           - "glue" is an ordinary English word
+#   github copilot / copilot  - "copilot" also names other vendors' products
+#   azure devops / devops     - DevOps is a general practice, not only the product
+#   azure openai / openai     - Azure OpenAI Service is a distinct hosted variant
+#   azure sql / sql           - SQL is the query language, not the product
+#   azure databricks / databricks - distinct hosted variant, kept separate
+#   microsoft word / word     - "word" is an ordinary English word
+pairs:
+  apache spark: spark
+  apache airflow: airflow
+  apache kafka: kafka
+  amazon redshift: redshift
+  aws redshift: redshift
+  google bigquery: bigquery
+  aws sagemaker: sagemaker
+  microsoft azure: azure
+  microsoft excel: excel
+  microsoft power bi: power bi
+  microsoft sql server: sql server
+  azure synapse: synapse

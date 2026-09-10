@@ -1,0 +1,481 @@
+# Stage E — top-level category taxonomy
+#
+# SCHEMA SCAFFOLD ONLY. Category content is written by hand by the user.
+# Do not add, propose, or seed categories in this file by any automated step.
+#
+# ---------------------------------------------------------------------------
+# id scheme
+#   cat_<slug>   where <slug> is lower snake_case: ^cat_[a-z0-9]+(_[a-z0-9]+)*$
+#   ids are stable and never reused. Change the scheme in tools/validate_categories.py
+#   (ID_SCHEME) if this convention changes.
+#
+# per-category fields
+#   id          : string, unique, matches the id scheme above.
+#   label       : string, human name. Must NOT contain a Stage D type word
+#                 (tool, library, language, method, practice, knowledge).
+#   definition  : string, required. What the category is.
+#   includes    : list of strings. Shapes/examples of concepts that belong.
+#   excludes    : list of exclusion tests, each a mapping:
+#                   - concept_shape : string, the shape that does NOT belong.
+#                     goes_to       : string, id of the category it belongs to.
+#                 At least TWO exclusion tests per category.
+#   role        : load_bearing | coverage.
+#   esco_hint   : optional string. NON-STRUCTURAL cross-reference only.
+#                 Never read by assignment or any other code.
+#   notes       : optional string.
+# ---------------------------------------------------------------------------
+
+version: 1.0.0
+frozen_at: 2026-08-31T00:00:00+10:00
+
+categories:
+  - id: cat_data_sourcing
+    label: Data sourcing and ingestion
+    definition: Getting raw data from source systems into working environments
+    includes:
+      - API integration
+      - web scraping
+    excludes:
+      - concept_shape: Scheduling and retrying a recurring ingestion job
+        goes_to: cat_pipeline_orchestration
+      - concept_shape: Validating that ingested records meet expectations
+        goes_to: cat_data_governance
+      - concept_shape: Processing an event stream as it arrives
+        goes_to: cat_distributed_processing
+    role: load_bearing
+    esco_hint: null
+    notes: null
+
+  - id: cat_data_transformation
+    label: Data transformation and semantic modelling
+    definition: Reshaping raw data into analysis-ready structures and metrics
+    includes:
+      - SQL
+      - dbt
+      - data modeling
+    excludes:
+      - concept_shape: Deriving predictive features for a training set
+        goes_to: cat_machine_learning
+      - concept_shape: Choosing physical storage layout and partitioning
+        goes_to: cat_data_architecture
+      - concept_shape: Running a transformation across a distributed cluster
+        goes_to: cat_distributed_processing
+      - concept_shape: A whole-field name used without specifying an activity
+        goes_to: cat_generic_field_reference
+    role: load_bearing
+    esco_hint: null
+    notes: null
+
+  - id: cat_data_architecture
+    label: Data storage and architecture
+    definition: Designing how data is stored, structured and accessed
+    includes:
+      - data warehouse
+      - data partitioning
+    excludes:
+      - concept_shape: Provisioning the underlying compute and network resources
+        goes_to: cat_cloud_platforms
+      - concept_shape: Writing transformation logic over stored tables
+        goes_to: cat_data_transformation
+      - concept_shape: Choosing between batch and streaming execution
+        goes_to: cat_distributed_processing
+    role: load_bearing
+    esco_hint: null
+    notes: null
+
+  - id: cat_data_security
+    label: Data security and privacy
+    definition: Protecting data from unauthorised access and privacy harm
+    includes:
+      - identity and access management
+      - data anonymisation
+    excludes:
+      - concept_shape: Auditing a model for discriminatory outcomes
+        goes_to: cat_responsible_ai
+      - concept_shape: Recording where a dataset came from and who owns it
+        goes_to: cat_data_governance
+    role: load_bearing
+    esco_hint: null
+    notes: null
+
+  - id: cat_data_governance
+    label: Data quality, governance and lineage
+    definition: Making data trustworthy, documented and traceable
+    includes:
+      - data cataloguing
+      - data testing
+    excludes:
+      - concept_shape: Encrypting or masking sensitive fields
+        goes_to: cat_data_security
+      - concept_shape: Measuring the accuracy of a model's predictions
+        goes_to: cat_model_evaluation
+    role: load_bearing
+    esco_hint: null
+    notes: This category refers to data-side obligations (retention, consent, lineage) rather than model-side obligations (fairness, documentation, and legal obligations).
+
+  - id: cat_pipeline_orchestration
+    label: Pipeline orchestration and workflow automation
+    definition: Automating and orchestrating repeatable end-to-end data workflows
+    includes:
+      - Airflow
+      - idempotency
+    excludes:
+      - concept_shape: Writing the connector that pulls from a source API
+        goes_to: cat_data_sourcing
+      - concept_shape: Automating build and release of application code
+        goes_to: cat_software_engineering
+      - concept_shape: Choosing how a job executes across a cluster
+        goes_to: cat_distributed_processing
+    role: coverage
+    esco_hint: null
+    notes: This category covers scheduling and dependency management, not the execution engine.
+
+  - id: cat_distributed_processing
+    label: Large-scale and distributed processing
+    definition: Processing data volumes too large for single-machine execution
+    includes:
+      - Spark
+      - Kafka
+      - Flink
+      - batch and streaming processing design
+      - partitioning and parallelism for compute
+    excludes:
+      - concept_shape: Expressing the business logic a query or model computes
+        goes_to: cat_data_transformation
+      - concept_shape: Provisioning and paying for the cluster the job runs on
+        goes_to: cat_cloud_platforms
+      - concept_shape: Choosing the storage format and schema data rests in
+        goes_to: cat_data_architecture
+    role: load_bearing
+    esco_hint: null
+    notes: Concerns the execution model — how work is distributed, parallelised and processed at volume — not what the work computes, where the data rests, or what infrastructure it runs on.
+
+  - id: cat_data_visualisation
+    label: Data visualisation and reporting
+    definition: Presenting data visually so others can act
+    includes:
+      - Power BI
+      - data storytelling
+    excludes:
+      - concept_shape: Negotiating requirements with stakeholders
+        goes_to: cat_professional_skills
+      - concept_shape: Defining the metric logic behind a dashboard
+        goes_to: cat_data_transformation
+      - concept_shape: Defining logical entities, relationships and metrics for analysis
+        goes_to: cat_data_transformation
+    role: load_bearing
+    esco_hint: null
+    notes: null
+
+  - id: cat_statistical_inference
+    label: Statistical inference and experimentation
+    definition: Drawing valid, causal conclusions from data and tests
+    includes:
+      - A/B tests
+      - causal inference
+    excludes:
+      - concept_shape: Deriving a probability distribution from first principles
+        goes_to: cat_mathematical_foundations
+      - concept_shape: Allocating traffic adaptively to maximise reward
+        goes_to: cat_reinforcement_learning
+      - concept_shape: Defining logical entities, relationships and metrics for analysis
+        goes_to: cat_data_transformation
+    role: load_bearing
+    esco_hint: null
+    notes: null
+
+  - id: cat_machine_learning
+    label: Predictive (classical) machine learning
+    definition: Training predictive models on structured, tabular problems
+    includes:
+      - feature engineering
+      - scikit-learn
+      - recommender systems
+    excludes:
+      - concept_shape: Designing a multi-layer network architecture
+        goes_to: cat_deep_learning
+      - concept_shape: Serving a trained model behind an endpoint
+        goes_to: cat_model_deployment
+      - concept_shape: An umbrella term naming a field rather than a technique
+        goes_to: cat_generic_field_reference
+    role: load_bearing
+    esco_hint: null
+    notes: null
+
+  - id: cat_deep_learning
+    label: Deep learning architectures and training
+    definition: Designing and training deep networks for complex data
+    includes:
+      - PyTorch
+      - GPU training
+    excludes:
+      - concept_shape: Assembling a retrieval application over a hosted model
+        goes_to: cat_foundation_models
+      - concept_shape: Boosting trees on a tabular dataset
+        goes_to: cat_machine_learning
+    role: load_bearing
+    esco_hint: null
+    notes: null
+
+  - id: cat_text_analysis
+    label: Text and speech understanding
+    definition: Extracting meaning and structure from text, speech, and audio
+    includes:
+      - embeddings
+      - NER
+      - speech recognition
+    excludes:
+      - concept_shape: Prompting and grounding a large pretrained generative model, or work that builds on one
+        goes_to: cat_foundation_models
+      - concept_shape: Implementing the transformer layers themselves
+        goes_to: cat_deep_learning
+    role: load_bearing
+    esco_hint: null
+    notes: null
+
+  - id: cat_vision_analysis
+    label: Vision and perception analysis
+    definition: Interpreting images, video and sensor signals computationally
+    includes:
+      - object detection
+      - OpenCV
+    excludes:
+      - concept_shape: Training the convolutional backbone from scratch
+        goes_to: cat_deep_learning
+      - concept_shape: Generating synthetic images from a prompt
+        goes_to: cat_foundation_models
+    role: load_bearing
+    esco_hint: null
+    notes: null
+
+  - id: cat_foundation_models
+    label: Generative and foundation-model systems
+    definition: Building applications on top of large pretrained models
+    includes:
+      - RAG
+      - fine-tuning
+      - prompting and context construction
+      - large language models (LLMs)
+    excludes:
+      - concept_shape: Giving a model tools and letting it plan multi-step work
+        goes_to: cat_agentic_systems_design
+      - concept_shape: Scoring generated outputs against a benchmark
+        goes_to: cat_model_evaluation
+      - concept_shape: Ranking items for a user from interaction history
+        goes_to: cat_machine_learning
+      - concept_shape: Extracting structured information from text without a generative model
+        goes_to: cat_text_analysis
+    role: load_bearing
+    esco_hint: null
+    notes: null
+
+  - id: cat_forecasting_analysis
+    label: Forecasting and temporal analysis
+    definition: Modelling time-dependent data to anticipate future values
+    includes:
+      - ARIMA
+      - backtesting
+    excludes:
+      - concept_shape: Estimating the causal effect of a past intervention
+        goes_to: cat_statistical_inference
+      - concept_shape: Choosing an action to take given a forecast
+        goes_to: cat_reinforcement_learning
+      - concept_shape: Defining logical entities, relationships and metrics for analysis
+        goes_to: cat_data_transformation
+    role: load_bearing
+    esco_hint: null
+    notes: null
+
+  - id: cat_agentic_systems_design
+    label: Agentic systems design
+    definition: Building systems that plan and execute multi-step tasks
+    includes:
+      - LangGraph
+      - tool calling
+    excludes:
+      - concept_shape: Adapting a base model's weights to a task
+        goes_to: cat_foundation_models
+      - concept_shape: Training a policy through trial-and-error reward
+        goes_to: cat_reinforcement_learning
+      - concept_shape: Using an AI coding assistant to write one's own code
+        goes_to: cat_software_engineering
+    role: load_bearing
+    esco_hint: null
+    notes: null
+
+  - id: cat_model_evaluation
+    label: Model and system evaluation
+    definition: Measuring whether models and systems perform as intended
+    includes:
+      - evals
+      - error analysis
+      - model interpretability and explainability
+    excludes:
+      - concept_shape: Designing a controlled trial to test a business change
+        goes_to: cat_statistical_inference
+      - concept_shape: Watching a live model for input drift after release
+        goes_to: cat_model_deployment
+    role: load_bearing
+    esco_hint: null
+    notes: null
+
+  - id: cat_reinforcement_learning
+    label: Reinforcement learning and decision optimisation
+    definition: Optimising sequential decisions and actions under uncertainty or constraints
+    includes:
+      - Q-learning
+      - reward design
+    excludes:
+      - concept_shape: Fitting a supervised model to labelled outcomes
+        goes_to: cat_machine_learning
+      - concept_shape: Orchestrating a tool-using assistant with fixed logic
+        goes_to: cat_agentic_systems_design
+    role: load_bearing
+    esco_hint: null
+    notes: null
+
+  - id: cat_software_engineering
+    label: Software engineering and code quality
+    definition: Writing maintainable, tested, collaborative production code
+    includes:
+      - Git
+      - unit testing
+    excludes:
+      - concept_shape: Knowing the syntax and data structures of a coding language
+        goes_to: cat_programming_foundations
+      - concept_shape: Packaging and rolling out a trained model
+        goes_to: cat_model_deployment
+    role: coverage
+    esco_hint: null
+    notes: null
+
+  - id: cat_model_deployment
+    label: Deployment, serving and model operations
+    definition: Releasing, running and monitoring models in production
+    includes:
+      - Docker
+      - drift monitoring
+    excludes:
+      - concept_shape: Provisioning the cluster the service runs on
+        goes_to: cat_cloud_platforms
+      - concept_shape: Scheduling recurring data jobs unrelated to a model
+        goes_to: cat_pipeline_orchestration
+    role: load_bearing
+    esco_hint: null
+    notes: null
+
+  - id: cat_programming_foundations
+    label: Programming foundations
+    definition: Writing code to manipulate data and implement logic
+    includes:
+      - Python
+      - data structures
+    excludes:
+      - concept_shape: Reviewing, branching and testing code as a team
+        goes_to: cat_software_engineering
+      - concept_shape: Querying and joining relational tables
+        goes_to: cat_data_transformation
+      - concept_shape: Defining logical entities, relationships and metrics for analysis
+        goes_to: cat_data_transformation
+    role: coverage
+    esco_hint: null
+    notes: null
+
+  - id: cat_mathematical_foundations
+    label: Mathematical and statistical foundations
+    definition: Understanding the mathematics underlying models and methods
+    includes:
+      - linear algebra
+      - probability
+    excludes:
+      - concept_shape: Running a hypothesis test on real data
+        goes_to: cat_statistical_inference
+      - concept_shape: Implementing a numerical routine in code
+        goes_to: cat_programming_foundations
+      - concept_shape: Defining logical entities, relationships and metrics for analysis
+        goes_to: cat_data_transformation
+    role: coverage
+    esco_hint: null
+    notes: null
+
+  - id: cat_cloud_platforms
+    label: Cloud platforms and infrastructure
+    definition: Provisioning and operating compute, storage and networking
+    includes:
+      - Terraform
+      - resource management
+    excludes:
+      - concept_shape: Choosing a warehouse schema and storage model
+        goes_to: cat_data_architecture
+      - concept_shape: Configuring identity and permission boundaries for data
+        goes_to: cat_data_security
+      - concept_shape: Designing how a job parallelises across nodes
+        goes_to: cat_distributed_processing
+    role: coverage
+    esco_hint: null
+    notes: null
+
+  - id: cat_responsible_ai
+    label: Responsible AI and compliance
+    definition: Ensuring systems meet ethical, legal and fairness obligations
+    includes:
+      - model risk documentation
+      - bias auditing
+    excludes:
+      - concept_shape: Computing accuracy metrics on a held-out set
+        goes_to: cat_model_evaluation
+      - concept_shape: Restricting who can read a sensitive dataset
+        goes_to: cat_data_security
+    role: load_bearing
+    esco_hint: null
+    notes: This category refers to model-side obligations (fairness, documentation, and legal obligations) rather than data-side obligations (retention, consent, lineage).
+
+  - id: cat_domain_context
+    label: Domain and business context
+    definition: Applying industry context to frame and validate problems
+    includes:
+      - financial services domain
+      - clinical workflows
+    excludes:
+      - concept_shape: Interpreting a sector-specific legal obligation for AI use
+        goes_to: cat_responsible_ai
+      - concept_shape: Presenting findings to a business audience
+        goes_to: cat_professional_skills
+    role: coverage
+    esco_hint: null
+    notes: null
+
+  - id: cat_professional_skills
+    label: Professional and interpersonal skills
+    definition: Working effectively with people to deliver outcomes
+    includes:
+      - collaboration
+      - project management
+    excludes:
+      - concept_shape: Building the chart or report that carries the message
+        goes_to: cat_data_visualisation
+      - concept_shape: Understanding how a particular industry operates
+        goes_to: cat_domain_context
+    role: coverage
+    esco_hint: null
+    notes: null
+
+  - id: cat_generic_field_reference
+    label: Generic field references
+    definition: >
+      Broad names for a whole field of work, used in job ads as shorthand rather
+      than to specify a skill. Concepts here name what the role is about, not
+      what the person must be able to do.
+    includes:
+      - Whole-field names used without further specification
+      - Umbrella terms covering many distinct activities
+    excludes:
+      - concept_shape: A named activity with an identifiable output
+        goes_to: cat_data_transformation
+      - concept_shape: A named model family or architecture
+        goes_to: cat_machine_learning
+    role: coverage
+    esco_hint: null
+    notes: >
+      Holding category for ad boilerplate. Excluded from penetration analysis by
+      default; report its mass per occupation-year cell as a corpus-quality figure.

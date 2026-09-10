@@ -1,0 +1,31 @@
+version: "1.1.0"
+
+# Cosine-similarity threshold for keeping a kNN edge. An edge is kept only if
+# similarity >= threshold. Moved 0.90 -> 0.88 on 2026-08-28 after the threshold
+# sweep (reports/threshold_sweep_samples.csv): 0.88 rescues ~172 forms from
+# singleton status, the largest step before the sweep flatlines below ~0.86.
+# Any change here is a new version.
+threshold: 0.88
+
+# A candidate group larger than this is re-split at a raised threshold. Groups
+# are meant to be small enough to review by eye in step 3.
+max_group_size: 8
+
+# Minimum form length in CHARACTERS. A form shorter than this is not embedded
+# (short strings embed unreliably); it passes through as a single-member group.
+min_form_length: 3
+
+# --- method parameters, versioned alongside the three tunables above ---
+
+# Neighbours per node in the kNN graph.
+knn_k: 15
+
+# Step by which a too-large component's threshold is raised, and the hard cap on
+# that raise loop. If a component is still too large at the ceiling the run
+# fails loudly rather than looping forever.
+threshold_step: 0.01
+threshold_ceiling: 0.99
+
+# Single seed for every random draw (diagnostic sampling). Set so two runs on
+# the same input give byte-identical output.
+random_seed: 20260828

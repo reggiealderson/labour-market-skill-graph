@@ -1,0 +1,389 @@
+# Resolver policy — every design decision the pipeline obeys, in one file.
+#
+# The rule this file exists to enforce: no tunable lives in code. If a number
+# changes an output, it is here, with the reason it holds that value and the
+# date it was decided. A run stamps the hash of this file into report.json, so
+# a published number always carries the policy that produced it. Two runs under
+# different hashes are not comparable, and the tests say so rather than leaving
+# it to be noticed later.
+#
+# Read with: pipeline/resolver_policy.py  (stdlib tomllib, no dependency)
+
+schema_version = 1
+policy_version = "resolver-policy-v1.0.0"
+
+# ─────────────────────────────────────────────────────────────────────────────
+[counting]
+# DECIDED 2026-08-27. A rollup edge says the child is narrower than the parent,
+# and narrowness passes down a chain: if A is narrower than B and B than C, then
+# A is narrower than C, whether or not B happens to be written in this corpus.
+# Counting direct children only lets a corpus accident set a published number —
+# `elt` keeps 100 postings or loses them depending on whether one middle string
+# exists. Store direct edges only; compute the closure as a view.
+closure = true
+closure_why = "narrowness is transitive; direct-only lets corpus accident set the number"
+
+# Postings, never mentions. One posting naming three family members counts once.
+# Mentions double-count it. Measured 2026-08-27: for the affected families the
+# two units agree within a point, because these families are small enough that
+# few postings name two members — but the unit is fixed on principle, not on
+# that measurement, which will not hold as families grow.
+unit = "postings"
+unit_why = "a family is a share of postings; mentions double-count co-occurrence"
+
+# Families overlap. They do not partition the corpus and must never be summed
+# to 100%. Output carrying family counts must carry this flag.
+families_partition = false
+
+# ─────────────────────────────────────────────────────────────────────────────
+[level1]
+# Frozen. Level 1 sees ONE string at a time and never looks at the others; that
+# is what makes it safe and what keeps decision keys stable across re-runs.
+# Decision keys in data/resolver/decisions.json are level-1 strings for exactly
+# this reason, so changing anything here invalidates them.
+version = "resolver-level1-v1.0.0"
+case_fold = true
+punctuation_fold = true
+strip_trailing_parenthetical = true
+acronym_map = "pipeline/acronyms.py:BASE_ACRONYM_MAP"   # one map, all occupations
+plural_folding = false
+plural_folding_why = "needs to see other strings; belongs to level 2 rule (b)"
+
+# ─────────────────────────────────────────────────────────────────────────────
+[level2]
+# Rule (b) runs FIRST, then rule (a), then the token-set assertion. Rule (b)
+# creates new collisions ("cloud databases" folds to "cloud database", which may
+# already exist) and only rule (a) removes them. Level 4 requires them gone.
+order = ["rule_b", "rule_a"]
+
+[level2.rule_a]
+# Identical token sets. CANNOT be wrong: a different word order carries no
+# information, so folding it loses none.
+enabled = true
+safe = true
+
+[level2.rule_b]
+# Singular/plural pairs. CAN be wrong. Folds a singular onto its plural only
+# when both forms occur in the corpus. Plurals are generated from the singular
+# and never stemmed off the plural, so no invented word ("data analysi",
+# "databas") is possible.
+enabled = true
+safe = false
+unsafe_why = "an acronym can read as an English plural: RAPIDS is a library, rapid is a word"
+
+# Case is the only signal that survives level 1, so the raw surface form is kept
+# to the last moment. A test, not a list: it catches the next acronym of this
+# kind, and it found http/https, cm/cms and nir/nirs, which no list held.
+caps_test = true
+# The caps word must BE the plural token. Level 1 expands acronyms, so a raw
+# "LLM" that becomes "large language models" must not block that pair.
+caps_test_requires_token_match = true
+# The test over-blocks — VLOOKUPS is a real plural in capitals. Deliberate: a
+# refused fold is a merge not made and stays reversible; a wrong fold destroys a
+# distinction for good.
+over_block_accepted = true
+
+# ─────────────────────────────────────────────────────────────────────────────
+[candidates]
+min_mentions = 2
+fuzzy_cutoff = 85            # rapidfuzz token_set_ratio
+fuzzy_scorer = "token_set_ratio"
+
+# ─────────────────────────────────────────────────────────────────────────────
+[acronym_scan]
+# Type-3 gap scan: strings that SHOULD be linked but share no literal word,
+# so the subset rule can never see them ("amazon web services" vs "aws").
+#
+# SORT BY GAIN, NOT BY COMBINED WEIGHT. Merging a spelled-out form into its
+# acronym moves only the SPELLED-OUT form's mentions; the acronym's own weight
+# does not move. So "sql"/"structured query language" looks enormous by
+# combined mentions (1,764) and moves 3 mentions out of 73,193 — invisible in
+# any published number. "aws"/"amazon web services" moves 59. Gain is the
+# spelled-out form's mentions, and that is the only ordering that reflects
+# damage. This is the same fault fixed once already in the edge review, which
+# was sorted by the parent's own weight until it was changed to closure reach:
+# damage is not proportional to own weight.
+sort_by = "gain"
+
+# Below this gain, do not ask a person. The pair is recorded as BELOW-LIMIT,
+# which is not a rejection: it is recomputed every run and returns
+# automatically if new job ads raise its gain above the limit. An unmade merge
+# loses nothing; a person's attention spent on 3 mentions does.
+min_gain_mentions = 10
+min_gain_mentions_why = "below this a merge cannot move any published number"
+
+# DOMINANCE GATE. DECIDED 2026-08-28, from the calibration run.
+#
+# The scan matches on initials, so it proposes one expansion per acronym and
+# hides the competition. Measured: 113 acronyms in this corpus already have MORE
+# THAN ONE expansion present. "qa" is quantitative analysis (25) AND quality
+# assurance (18); "cdp" has 18 expansions including customer data platform.
+# Ambiguity is present today, not hypothetical.
+#
+# The model cannot see this. Shown one pair in isolation it answers from world
+# knowledge about what an acronym "standardly" means — it asserted QA is more
+# commonly quality assurance, which is backwards for this corpus. Of its 9
+# proposed merges, 5 were on contested acronyms: irreversible merges on
+# coin-flips.
+#
+# So this is a gate, not a judgement. Ratio = mentions of the top expansion
+# divided by the runner-up. Below it, the pair is recorded CONTESTED: never
+# merged, and never asked. Like the gain limit, it is recomputed every run, so a
+# pair returns by itself if new ads make one expansion dominant.
+#
+# 5.0 comes from the human's own answers, not from a guess. Every one of the six
+# approved merges scored >= 7 (aws 59, bi 24, sdlc 8.5, ai 7.0); every pair the
+# human called ambiguous scored <= 3.3 (dlt 3.3, mmm 1.6, qa 1.4, aml 1.2,
+# cdp 1.1, ct 1.1). 5.0 sits in the empty gap between the two clusters.
+#
+# It also answers the structural risk: the level-1 acronym map is ONE map for
+# ALL occupations, so a merge decided today applies to every occupation added
+# later. A finance role brings anti-money laundering and "aml" moves further
+# from Azure ML — the gate recomputes, where a stored merge would not.
+min_dominance_ratio = 5.0
+min_dominance_ratio_why = "empty gap between the six approved merges (>=7.0) and every pair called ambiguous (<=3.3)"
+
+[level3]
+# The only destructive step. A merge cannot be undone downstream.
+# Pairs at or above this share of postings are arbitrated; below it they are
+# kept as `related` edges, which is additive and reversible.
+penetration_threshold = 0.05
+
+# ─────────────────────────────────────────────────────────────────────────────
+[level4]
+must_be_standalone = true
+must_be_standalone_note = "correct in principle; never fires today, because candidates are drawn from the corpus"
+
+# Tokens that may never name a family. A family called "data" or "systems"
+# would swallow the catalogue and mean nothing.
+parent_stoplist = [
+  "data", "management", "systems", "system", "analysis", "analytics",
+  "tools", "tool", "skills", "skill", "experience", "software", "development",
+  "engineering", "design", "technology", "technologies", "solutions",
+  "platform", "platforms", "services", "service", "processes", "process",
+  "knowledge", "understanding", "ability", "operations", "practices",
+  "techniques", "methods", "concepts", "principles", "frameworks",
+  "applications", "environment", "environments", "infrastructure",
+  "and", "or", "of", "the", "in", "with", "for", "to", "a", "an",
+]
+
+# Tokens ignored when comparing content, so "data pipelines" still relates to
+# "cloud-native data pipelines" through "pipelines".
+content_stopwords = [
+  "data", "and", "or", "of", "the", "in", "with", "for", "to", "a", "an",
+  "management", "development", "engineering", "analysis", "systems", "system",
+  "tools", "tool", "skills", "experience", "software", "advanced", "modern",
+]
+
+# THE STOPWORD FAULT. Measured 2026-08-27: 238 edges (6.7%) exist only because a
+# content stopword vanished — "data" caused 118 of them. Where the parent's RAW
+# tokens are still inside the child's, the drop only widens a relation that
+# already held, and that is the case the stopwords were written for. Where they
+# are NOT, the two strings disagree on a word and the resolver was blind to it:
+# "data pipelines" -> "ai pipelines" is a sibling, not a narrowing.
+# Those become `related` edges, which is additive, rather than rollup edges,
+# which inflate a family invisibly.
+stopword_only_edges = "related"
+stopword_only_edges_why = "raw-token disagreement means siblings, not narrowing"
+
+[level4.obvious_edges]
+# Deterministic pre-pass, so the model never sees an edge a rule can settle.
+# A one-word parent whose child is that word plus exactly one qualifier token is
+# a narrowing by construction: "sql" -> "azure sql". Nothing is being judged.
+enabled = true
+parent_max_tokens = 1
+child_extra_tokens = 1
+# Even here the parent stoplist applies: "data" -> "data quality" is not obvious,
+# it is meaningless.
+respect_parent_stoplist = true
+
+# ─────────────────────────────────────────────────────────────────────────────
+[adjudication]
+# Model first pass over what the deterministic rules leave. Noted here because
+# CLAUDE.md requires every Anthropic API step to name its model, purpose, and
+# review status.
+enabled = true
+model = "claude-sonnet-5"
+escalation_model = "claude-opus-5"
+# One Sonnet pass. `uncertain` is the ONLY route to Opus — no double run.
+escalate_on = ["uncertain"]
+single_pass = true
+use_batch_api = true
+purpose = "first-pass verdicts for level-3 pairs and rollup edges"
+verdicts_pairs = ["merge", "keep_separate", "uncertain"]
+verdicts_edges = ["rollup", "related", "reject", "uncertain"]
+# A model verdict is never mistaken for a human one: every entry written to
+# decisions.json carries by="model", the model id, and the prompt version.
+human_reviewed = false
+
+# DECIDED 2026-08-27, from measurement. One item per request costs 848 input
+# tokens to ask a ~67-token question: the shared system prompt and tool schema
+# are 781 tokens, repeated once per item — 1.5M of the 1.6M total tokens on a
+# full first run. The prefix is paid once per REQUEST, so N items per request
+# divides that overhead by N.
+#
+# Prompt caching cannot solve this and must not be relied on here: Sonnet 5's
+# minimum cacheable prefix is 1,024 tokens and ours is 781, so caching SILENTLY
+# never fires — no error, cache_creation_input_tokens simply stays 0. The Batch
+# API is a separate mechanism and does not make a sub-minimum prefix cacheable.
+# If the system prompt ever grows past 1,024 tokens, revisit: caching becomes
+# available and changes this calculation.
+#
+# Measured cost of a full first run (1,918 items, Batch API, Sonnet 5 intro
+# pricing): 1/req $2.20, 10/req $0.85, 25/req $0.76, 50/req $0.73.
+# 25 takes 65% of the saving; past it the curve flattens while the blast radius
+# keeps growing — one malformed response costs N verdicts, and isolating a
+# single bad item gets harder.
+# DECIDED 2026-08-28, after getting this wrong once. The Batch API is the
+# not-latency-sensitive tier — that is WHY it is 50% cheaper. There is no SLA
+# under 24 hours. A 1,918-item production run should obviously queue; a 24-item
+# calibration run a person is waiting on should obviously not. Sending the
+# calibration to the batch queue traded an unbounded wait for ONE CENT.
+#
+# So the choice is made on workload size, not as a blanket setting. Below this
+# many items, use the standard API and accept the 2x cost on a trivial bill.
+batch_api_min_items = 200
+batch_api_min_items_why = "batch trades latency for 50%; below this the saving is cents and the wait is unbounded"
+
+items_per_request = 25
+items_per_request_why = "781-token prefix per request; 25 captures 65% of the saving before the failure blast radius outgrows the gain"
+
+# ─────────────────────────────────────────────────────────────────────────────
+[review]
+# The human edge review. Which parents a person reads, and in what order.
+#
+# DECIDED 2026-08-28. The sheet was sorted by closure size alone. Closure size
+# is a COST key: it says what a wrong edge is worth, not how likely one is.
+# `tableau` has 2 children on one subject and `models` has 92 spanning Bayesian
+# models, dbt models, attribution models and clinical data models. Both are
+# legal under the token rule; only one is a family. Closure size cannot separate
+# them, and the fault was found by eye rather than by measurement — twice.
+#
+# The scatter score is the RISK key. Per parent: strip the parent's tokens and
+# the content stopwords from each child, link children that share a residual
+# token, and count the children outside the largest group (`outside`). See
+# pipeline/edge_scatter.py.
+#
+# NEITHER KEY MAY BE USED ALONE, and this is the same rule as tests.bounds:
+# a one-sided key cannot see the fault on its other side.
+#   - closure alone is blind to risk — it put `python` at rank 1 for a single
+#     child, `python programming`, which carries no information to review.
+#   - scatter alone is blind to cost — a parent with one child has nothing
+#     outside its main group and scores 0 BY CONSTRUCTION. That is 468 of the
+#     882 parents with children. Scatter ranks `python` 395th, on the most
+#     expensive single edge in the catalogue (2,290 closure postings).
+# So must_read is the UNION of the two heads, never one of them.
+must_read = "union"
+must_read_why = "closure is blind to risk, scatter is blind to cost; one key alone cannot see its own other side"
+
+# Read in scatter order. The union decides WHICH parents are read; this decides
+# the order they are read in, and the scattered ones are where the eye finds
+# faults fastest. closure_rank stays on the sheet as a second column, so a
+# high-cost parent is never read without its cost visible.
+sort_by = "scatter"
+
+# MEASURED 2026-08-28, not chosen. At k=30 the union is 47 parents and 1,289
+# rows — FEWER rows than the 1,512 the closure-only sheet already asked for,
+# covering both keys instead of one. k=20 gives 32 parents / 1,059 rows; k=50
+# gives 77 parents / 1,600 rows, which costs 24% more reading than the old sheet
+# to add cases below both heads. 30 is the largest k that still reads less than
+# the sheet it replaces.
+scatter_top_k = 30
+closure_top_k = 30
+top_k_why = "k=30 union is 47 parents / 1,289 rows, fewer than the 1,512 of the closure-only sheet it replaces"
+
+# PROVISIONAL. The score reproduces `models` and `cloud` — the two faults found
+# by eye — and those two cases are WHY it was written, so that agreement is not
+# independent evidence. Exactly the position shared_string_tolerance_ratio is
+# in: calibrated on the cases that motivated it, confirmed only by a case it did
+# not help produce. The review itself is that case. When verdicts come back,
+# compare `wrong` rates inside and outside the main group; the score is
+# confirmed if wrong edges concentrate outside it, and refuted if they do not.
+scatter_provisional = true
+
+# ─────────────────────────────────────────────────────────────────────────────
+[publication]
+# Numbers stay provisional until a person approves the review file.
+# Empty review queue -> publication is automatic.
+review_queue = "data/resolver/review_queue.json"
+provisional_when_queue_nonempty = true
+
+# ─────────────────────────────────────────────────────────────────────────────
+[tests]
+# Two-sided, always. A one-sided test cannot find an overshoot — the fault that
+# A3 and the first canaries both had.
+[tests.bounds]
+rollup_edges          = [3200, 3900]
+level3_queue          = [30, 60]
+multi_parent_rate     = [0.30, 0.50]
+level2_rule_b_families = [280, 400]
+level2_rule_a_families = [170, 240]
+
+[tests.change_detection]
+# TEST A — same corpus. Byte-identical output, no exceptions, no tolerance.
+# The resolver is deterministic or it is not; there is no middle setting.
+same_corpus_must_be_identical = true
+
+# TEST B — new corpus, SAME occupations. Compare direct-child edges over
+# parents present in both runs (new strings are expected, not drift).
+#
+# DECIDED 2026-08-27, from measurement, not a guess. A flat percentage cannot
+# work: holding out a whole occupation moves the corpus 3-16% at once and
+# moves the resolver's output 1.8-18.3%, so one fixed number either fires on
+# every normal run or permits a real fault. Nine leave-one-occupation-out
+# measurements gave a ratio (edge drift / corpus change) of 0.42 to 1.18. The
+# ratio below is the worst of those nine, so it clears every measured case and
+# still catches a change disproportionate to its corpus delta.
+#
+# PROVISIONAL. Set from nine synthetic hold-outs, not from a real incoming
+# batch of job ads. Revisit once a real run has gone through this gate.
+shared_string_tolerance_ratio = 1.2
+shared_string_tolerance_ratio_why = "worst of 9 leave-one-occupation-out ratios (0.42-1.18), all 9 used to set it"
+shared_string_tolerance_ratio_provisional = true
+
+# Never tighter than this, however small the corpus change is. A 1-posting
+# change should not be allowed a near-zero tolerance by the ratio alone.
+shared_string_tolerance_floor = 0.02
+
+# ABSOLUTE CEILING, independent of corpus size. The ratio deliberately permits
+# large drift when the corpus change is large — that is its purpose — so on a
+# big run it cannot catch a code fault that happens to land inside the ratio's
+# allowance. No single parent may lose or gain more than this share of its
+# direct-child edges, ever, regardless of how much the corpus moved.
+#
+# APPLIES ONLY when the current corpus and the baseline have IDENTICAL
+# occupation coverage (see known_occupations below and check 1 in
+# tests/test_resolver_change.py). Tested first without that restriction against
+# the ai_engineer hold-out: it failed on 81 of 707 shared parents, including
+# large families like "ai" (137 child slots, 51.8% drift) — the expected effect
+# of removing the one AI-specific occupation, not a fault. A flat ceiling
+# cannot tell those apart, so it is only meaningful once occupation coverage
+# is ruled out as the cause.
+#
+# UNMEASURED ON REAL DATA. Every measurement available is a hold-out, and
+# hold-outs are excluded from this check by the restriction above — so nothing
+# has ever exercised this number honestly except the synthetic proof in
+# tests/test_check3_synthetic.py (a fabricated corpus with one planted fault).
+# PROVISIONAL like the ratio: 40% is a starting number, confirmed only after a
+# real run has passed through it.
+max_single_parent_drift = 0.40
+
+# --accept-changes applies to TEST B ONLY. It can never wave through test A.
+accept_changes_applies_to = "test_b"
+baseline_dir = "data/resolver/baseline"
+
+# A NEW occupation is not a "new corpus of the same shape" — it is a different
+# question. ai_engineer is the binding case in the nine measurements (ratio
+# 1.18) precisely because it is the newest occupation and shares the least
+# vocabulary with the rest; the next new occupation can share even less, and
+# the drift test would then fail on a run that is actually correct. So a new
+# occupation SKIPS the drift test entirely and requires a new baseline plus
+# explicit human approval before publication — never an automatic pass.
+new_occupation_requires_new_baseline = true
+new_occupation_requires_approval = true
+# Every occupation the drift test is currently calibrated for. An occupation
+# appearing in the corpus that is NOT in this list triggers the rule above.
+known_occupations = [
+  "data_analyst", "data_engineer", "data_scientist",
+  "machine_learning_engineer", "ai_engineer", "analytics_engineer",
+]

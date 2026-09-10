@@ -1,0 +1,157 @@
+# Stage D — concept type rubric.
+#
+# Consumed by prompt type-v1.0.0 (pipeline/typing_concepts.py). Every concept is
+# assigned exactly one of the eight types below. This file is the single source
+# of the type enum, the definitions, the precedence rules for boundary cases,
+# the worked exemplars, and the deterministic overrides.
+#
+# Corpus independence: none of the definitions or precedence rules refer to this
+# dataset, its counts, or which forms happen to be present. The exemplars name
+# concepts that exist in our set only to illustrate a rule; they are not the
+# rule. A new advertisement that introduces an unseen concept is typed by the
+# same rules.
+#
+# Overrides (bottom) are applied deterministically by concept_id and are NEVER
+# sent to the model.
+
+version: "typing-rules-v1.3.0"
+
+# ── The nine allowed types — a closed enum. Nothing outside this set. ──────────
+# There is no tenth "route" value. A concept that cannot be placed is still
+# given its single best type, with abstain=true and a held_reason (see below);
+# holding is a flag + reason, never a type.
+types:
+  language:
+    definition: "A programming, query, or markup language with its own syntax and runtime — you write code IN it."
+  library:
+    definition: "A reusable code package or framework called from a host language — you import it INTO your program."
+  tool:
+    definition: "A standalone application, platform, or service you operate — installed, hosted, or used through a UI/CLI, not imported as code."
+  method:
+    definition: "A concrete technique or procedure you perform to produce a result — it has an output (regression, fine-tuning, feature engineering, A/B testing)."
+  practice:
+    definition: "An organised approach, methodology, or ongoing operational discipline that a team adopts and sustains, rather than a single procedure performed to produce a result."
+  knowledge_area:
+    definition: "A technical or scientific field / body of knowledge you possess, rather than an action you take."
+  transversal_skill:
+    definition: "A cross-cutting professional, cognitive, or interpersonal capability, not tied to a single technical domain."
+  compliance:
+    definition: "A named regulation, legal standard, or certification scheme an organisation must adhere to."
+  industry_context:
+    definition: "A market sector or business vertical that frames the work but is not itself a skill a person performs."
+
+# ── Precedence rules for the known boundary cases. ────────────────────────────
+# Each rule states the discriminating test and the direction it resolves.
+precedence:
+  - id: language_vs_library
+    rule: >
+      If the concept is something you write code in — a language with its own
+      grammar and execution model (SQL, Python, Scala) — it is `language`. If it
+      is a package/framework you import and call from within a host language
+      (PyTorch, pandas), it is `library`. The test is authorship of syntax
+      (language) versus consumption as a dependency (library).
+  - id: framework_is_library
+    rule: >
+      A named framework, runtime, or platform types as `library`, not
+      `language` — the language is the thing written IN it, and the framework is
+      a dependency you build on. Examples that are `library`, not `language`:
+      .NET, Spring, Node.js, React, Django, Rails. (Only the underlying language
+      itself — C#, Java, JavaScript, Python, Ruby — is `language`.)
+  - id: library_vs_tool
+    rule: >
+      If you `import`/`require` it and it runs inside your program, it is
+      `library`. If it is a standalone application, server, platform, or hosted
+      service you operate from the outside — a UI, a CLI, a cluster, a SaaS
+      product (Tableau, Airflow, Snowflake, Docker) — it is `tool`. When a
+      product ships both a service and a client library, type the concept by the
+      sense the label carries; default to `tool` for the platform name itself.
+  - id: generic_category_is_knowledge_area
+    rule: >
+      An UNBRANDED generic category label — a plural or mass noun naming a CLASS
+      of thing rather than a named instance (data platforms, cloud data
+      platforms, visualisation tools, relational databases, ML frameworks) —
+      types as `knowledge_area`, not `tool` or `library`. `tool` and `library`
+      are reserved for NAMED products (Tableau, Snowflake, React, pandas). If the
+      label carries no brand or product name and denotes a category, it is
+      knowledge_area.
+  - id: practice_vs_method
+    rule: >
+      If a concept names a WAY OF WORKING that a team adopts and maintains — an
+      organised methodology or ongoing operational discipline (MLOps, DevOps,
+      Agile, Scrum, CI/CD, data governance, observability) — it is `practice`,
+      not `method`. `method` is reserved for procedures with a concrete output
+      (regression, fine-tuning, feature engineering, A/B testing). Adopted-and-
+      sustained discipline beats one-off procedure.
+  - id: method_vs_knowledge_area
+    rule: >
+      If the concept names something you DO — a repeatable technique or procedure
+      (ETL, data modeling, regression, feature engineering) — it is `method`. If
+      it names a field or body of knowledge you HAVE — a discipline you study
+      (statistics, linear algebra, computer science) — it is `knowledge_area`.
+      Actionable technique beats field; a specific technique is never typed as
+      its parent discipline. The method/knowledge_area line is deliberately not
+      sharpened further — where a concept genuinely sits on it, either answer is
+      acceptable.
+  - id: technique_family_is_knowledge_area
+    rule: >
+      A named FAMILY of techniques — a sub-field that groups many procedures
+      under it (deep learning, computer vision, natural language processing,
+      reinforcement learning) — is `knowledge_area`, because it names a field
+      rather than a single procedure with an output.
+  - id: knowledge_area_vs_transversal_skill
+    rule: >
+      If the body of knowledge is technical or scientific and domain-bound
+      (statistics, econometrics), it is `knowledge_area`. If it is a general
+      professional or interpersonal capability that transfers across every domain
+      (communication, stakeholder management, critical thinking), it is
+      `transversal_skill`. Domain-bound expertise beats general capability.
+  - id: compliance_vs_industry_context
+    rule: >
+      If the concept is a named regulation, statute, standard, or certification
+      that imposes rules (HIPAA, GxP, SOX, GDPR, SOC 2), it is `compliance`. If it
+      is a sector or vertical that merely describes the setting of the work
+      (healthcare, financial services, supply chain), it is `industry_context`.
+      A named rule-set beats a sector; "regulatory knowledge OF a sector" still
+      types as `compliance` when a specific regime is named, else
+      `industry_context`.
+
+# ── Holding: abstain + held_reason. ───────────────────────────────────────────
+# abstain is the boolean that HOLDS a concept for manual review; held_reason
+# says WHY. Always still return the single best type — holding is never a type.
+# Emit a held_reason whenever abstain=true, chosen from this closed set:
+held_reasons:
+  vague_artefact:
+    definition: "The label is an extraction artefact and does not name a real concept (software engineering best practices, AI/ML techniques and methodologies)."
+  type_tie:
+    definition: "A real concept that sits genuinely between two types, with no signal in its label, description, or forms to break the tie."
+  insufficient_evidence:
+    definition: "A real concept, but with too few forms or mentions to place with any confidence."
+
+abstain_guidance: >
+  Set abstain=true, and give a held_reason, only when you cannot place the
+  concept: it is a vague_artefact, a genuine type_tie, or has
+  insufficient_evidence. Still return your single best type. Do not abstain to
+  avoid a hard-but-decidable call. When abstain=false, leave held_reason empty.
+
+# ── Worked exemplars, 3–5 per type, drawn from concepts in our set. ───────────
+# Illustration only; the definitions and precedence rules above are what decide.
+exemplars:
+  language: [python, r, sql, scala, java]
+  library: [pytorch, tensorflow, scikit-learn, pandas, langchain]
+  tool: [tableau, power bi, airflow, snowflake, docker]
+  method: [etl, data modeling, feature engineering, regression, fine-tuning]
+  practice: [mlops, devops, agile, scrum, ci/cd, data governance, observability]
+  knowledge_area: [statistics, linear algebra, econometrics, deep learning, natural language processing]
+  transversal_skill: [communication, stakeholder management, leadership, teamwork, critical thinking]
+  compliance: [hipaa, gxp, sox compliance, gdpr, soc 2]
+  industry_context: [healthcare data, financial services, supply chain domain, banking, insurance]
+
+# ── Deterministic overrides. Applied by concept_id, never sent to the model. ──
+# Seeded with the known non-skill items. The label is recorded for auditability
+# only; the id is the key.
+type_overrides:
+  cpt_72be4713c76fceed: {type: compliance, label: "hipaa"}
+  cpt_b7e292e88259466e: {type: compliance, label: "GxP"}
+  cpt_164df8c2a7ebb6ac: {type: industry_context, label: "healthcare data"}
+  cpt_1bb8755b6064f1fe: {type: industry_context, label: "financial services"}
+  cpt_e717e7be014e45d0: {type: industry_context, label: "supply chain domain"}

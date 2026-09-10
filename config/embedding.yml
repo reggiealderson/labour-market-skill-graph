@@ -1,0 +1,25 @@
+version: "1.0.0"
+
+# The embedding model is PINNED by exact name AND revision hash. A different
+# model, or even a different revision of the same model, produces different
+# vectors and therefore different groups, which breaks comparability with any
+# batch embedded earlier. Never change these two lines without bumping the
+# version above and re-embedding every form under a new cache key.
+model:
+  name: "intfloat/e5-small-v2"
+  revision: "ffb93f3bd4047442299a41ebb6fa998a38507c52"
+  dimension: 384
+
+# E5 is a symmetric-similarity model that expects a short instruction prefix on
+# EVERY text. For clustering / pairwise similarity (a symmetric task) the same
+# "query: " prefix goes on both sides. {form} is replaced by the normalised
+# form. Changing this template changes the vectors, so it is versioned with the
+# model.
+template: "query: {form}"
+
+# Unit-normalise vectors so cosine similarity is a plain dot product.
+normalize_embeddings: true
+
+# CPU, single-threaded, for run-to-run byte-identical embeddings independent of
+# machine. A GPU/MPS backend reorders float reductions and breaks that.
+device: "cpu"

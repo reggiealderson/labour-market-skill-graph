@@ -1,0 +1,10 @@
+# Human-authored files that must never be silently clobbered.
+# One repo-relative path per line. Blank lines and #comments ignored.
+# scripts/protect_snapshot.py snapshots these before risky commands run.
+taxonomy/categories.yaml
+reports/type_tie_review.csv
+reports/held_retype_worklist.csv
+reports/stage_f_gold_blank.csv
+data/gate/gate_disagreements.csv
+data/gate/gate2_blank.csv
+docs/PIPELINE_STATUS.md

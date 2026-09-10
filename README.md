@@ -1,74 +1,89 @@
 # Labour-market skill knowledge graph
 
-A knowledge graph of the skills demanded in data and AI job roles, built from job
-advertisements. For each role, the graph shows which skills are demanded, how
-common each is, and which skills are demanded *together*.
-
-The interactive graph is published at
+Turn a folder of job advertisements into a **skill knowledge graph** per role:
+which skills are demanded, how common each is, and which skills are demanded
+together. This is a minimal, runnable extract of the pipeline behind the
+interactive graph at
 **[reggiealderson.com/skill-graph](https://reggiealderson.com/skill-graph)**.
 
-This repository is a **public guide to how that graph is built** — the method,
-the data contract, and the graph-building code. The full pipeline and the raw job
-ads live in a separate private repository; nothing here contains raw ad text.
+You bring the job ads (in a documented schema) and an Anthropic API key; the
+pipeline produces the graph JSON that the viewer renders. It ships a **worked
+example** for six data/AI roles — swap the taxonomy and occupation lists for
+your own domain.
+
+> The raw job-ad dataset is **not** included and never leaves the pipeline;
+> outputs are concept-level (skill labels + counts), never ad text.
 
 ## What the graph shows
 
-- **Nodes** — skills (called *concepts*) demanded in a role. Node size/among
-  attributes carry the skill's *penetration* (share of that role's ads that
-  mention it), its type (language, library, tool, method, …), and AI-relatedness
-  facets.
-- **Edges** — pairs of skills that are demanded together more than chance would
-  predict. Edge weight is a symmetric co-occurrence confidence; each edge also
-  carries a *lift* value.
+- **Nodes** — skills (*concepts*) demanded in a role, carrying penetration
+  (share of the role's ads), type (language, library, tool, method, …), and AI
+  facets. A skill that is common but does not co-occur tightly is kept as an
+  isolated node.
+- **Edges** — skill pairs demanded together more than chance predicts
+  (association-rule co-occurrence: support, confidence, lift).
 
-Six roles are covered: data analyst, data engineer, data scientist, machine
-learning engineer, AI engineer, analytics engineer.
+## Quick start
 
-## How it is built (short version)
+```bash
+pip install -r requirements.txt
+export ANTHROPIC_API_KEY=sk-...
+# put your ads at data/extracted/<year>/<occupation>.jsonl  (see schema/)
+# then run the stages in docs/RUN.md, ending at:
+python3 pipeline/analytics/export_graph.py
+# -> data/analytics/graph/<occupation>_2026.json
+```
 
-Job ads → normalised skill mentions → merged into stable concepts → typed and
-categorised → AI facets → per-role penetration and co-occurrence → graph JSON.
+Full command sequence: **[`docs/RUN.md`](docs/RUN.md)**.
 
-Full account: [`docs/pipeline_overview.md`](docs/pipeline_overview.md).
-The co-occurrence method (support, confidence, lift): [`docs/adjacency_method.md`](docs/adjacency_method.md).
+## The pipeline
 
-## What is in this repo
+Job ads → skill extraction → normalise → block (local embeddings) → semantic
+merge into stable concepts → typing → category assignment → AI facets →
+per-role penetration and co-occurrence → graph JSON.
+
+- Overview: [`docs/pipeline_overview.md`](docs/pipeline_overview.md)
+- Co-occurrence method (support/confidence/lift, the hub clause):
+  [`docs/adjacency_method.md`](docs/adjacency_method.md)
+- Input schema: [`schema/input_job_ads.md`](schema/input_job_ads.md)
+- Output schema: [`schema/graph_data_contract.md`](schema/graph_data_contract.md)
+
+Four LLM stages (extraction, merge, typing, assignment, facets) call the
+Anthropic API; every model output is recorded as model-made and is meant to be
+human-reviewed. Blocking embeds locally (`intfloat/e5-small-v2`) — no embedding
+API.
+
+## Layout
 
 | path | what |
 |------|------|
-| `docs/pipeline_overview.md` | The stages, end to end. |
-| `docs/adjacency_method.md` | How two skills are judged "related" (association-rule mining). |
-| `schema/graph_data_contract.md` | The exact JSON schema the graph viewer consumes. |
-| `graph/compute_adjacency.py` | Builds the co-occurrence edges + node population. |
-| `graph/export_graph.py` | Emits one graph JSON per role. |
-| `sample/data_scientist_2026.json` | One real graph file, to read against the schema. |
-| `sample/index.json` | The manifest that lists every role graph. |
+| `pipeline/` | Stage modules + `pipeline/analytics/` (penetration, adjacency, graph export). |
+| `scripts/` | Stage runners (`run_*.py`, `classify_facet.py`). |
+| `config/` | All rule content — normalisation, blocking, resolver, typing — versioned YAML/TOML, never in code. |
+| `taxonomy/` | The worked-example categories + facets, and their validators' targets. |
+| `tools/` | Taxonomy validators (no API needed). |
+| `schema/` | Input and output data contracts. |
+| `sample/` | A synthetic input file and one real example graph output. |
+| `docs/` | How to run, pipeline overview, method. |
 
-The two scripts in `graph/` are copied unmodified from the private pipeline.
-They are here to read, not to run — they expect the private repo's data files.
+## Design principles (from the source project)
 
-## A note on the method
+1. All rule content lives in versioned config, never in Python.
+2. No rule depends on the current corpus.
+3. Model output is never mistaken for human output — provenance columns
+   (`model`, `by`) travel with every model-made row.
+4. Nodes are a population, not a by-product of edges.
 
-Two design choices are worth calling out, both documented in full in the method
-doc:
+## Scope and honesty
 
-1. **Nodes are a population, not a by-product of edges.** A skill that is common
-   in a role but does not co-occur tightly with any other skill is still a node
-   (an isolated node). Dropping it would hide real demand.
-2. **The hub clause.** The edge metric *lift* has a mathematical ceiling of
-   `1 / penetration`. A near-universal skill — Python appears in 84% of
-   data-scientist ads — cannot reach the normal lift threshold however tightly it
-   pairs, so the most defining skill of a role was being excluded from the graph.
-   A targeted clause relaxes the lift bar for such hub skills only.
+This is the same code that produced the published graph, minus site-specific
+ingestion (a cloud data pull) and the author's website-publishing step. It has
+not been re-run end to end inside this public repo — you supply the data and
+key. The taxonomy validators and local stages run standalone. See the scope note
+in [`docs/RUN.md`](docs/RUN.md).
 
 ## Interpretation and limits
 
-The graph is built from cross-sectional samples of job ads. It shows which skills
-are *demanded together*, not that one skill causes demand for another. Penetration
-is ad-level incidence within a role-year sample. Figures are a snapshot, not a
-census of the labour market.
-
-## Licence / use
-
-Documentation and code are shared for transparency about how the published graph
-is produced. See the site for the graph itself.
+Built from cross-sectional ad samples. It shows which skills are *demanded
+together*, not that one causes demand for another. Penetration is ad-level
+incidence within a role-year sample — a snapshot, not a census.

@@ -1,0 +1,27 @@
+version: "1.0.1"
+
+# Forms no rule may change. Checked before every rule, every iteration.
+# Single letters and ordinary English words that could collide with a future
+# rule added for a new occupation. Includes the bare targets of the 9
+# rejected vendor pairs, so a later config edit cannot accidentally fold a
+# vendor form onto them without a deliberate, explicit change here first.
+forms:
+  - r
+  - c
+  - go
+  - word
+  - hex
+  - cursor
+  - copilot
+  - bedrock
+  - glue
+  - lambda
+  - devops
+  - openai
+
+  # Found 2026-08-28: the blanket "tools"/"suite" suffix strip reduces these
+  # two exact source forms to a bare vendor/category word with no meaning on
+  # its own ("data", "microsoft"). Protecting the SOURCE form stops the strip
+  # before it fires, rather than protecting the bad output after the fact.
+  - data tools
+  - microsoft suite

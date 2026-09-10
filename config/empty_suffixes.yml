@@ -1,0 +1,14 @@
+version: "1.0.0"
+
+# Trailing words stripped from the last token of a form, blindly, on every
+# occupation, forever. Only words safe in ALL contexts belong here.
+#
+# "pipelines" and "skills" were considered and rejected as blanket suffixes:
+#   "data pipelines" -> "data" loses a well-defined skill for a near-empty token
+#   "interpersonal skills" -> "interpersonal" leaves a bare adjective
+# The safe cases found for "pipelines" (etl pipelines, ci/cd pipelines) are
+# handled as explicit pairs in aliases.yml instead.
+suffixes:
+  - processes
+  - tools
+  - suite
