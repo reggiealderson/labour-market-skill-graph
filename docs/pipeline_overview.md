@@ -4,36 +4,62 @@ How a folder of job advertisements becomes the skill knowledge graph. Each stage
 is deterministic and versioned; where a language model is used, its output is
 recorded as model-made and human-reviewed.
 
-## Corpus
+## This is a data-science / AI domain pipeline
 
-- ~3,200 job ads across 6 occupations: data analyst, data engineer, data
-  scientist, machine learning engineer, AI engineer, analytics engineer.
-- Two snapshots: 2021 (first three roles) and 2026 (all six). The published
-  graph uses 2026.
+The method was designed **for and around data-science, analytics, and AI job
+ads** — it is not a domain-neutral tool with the data-science parts bolted on.
+That grounding shows up in the parts you would change for another field:
+
+- **Occupations.** The worked example is six data/AI roles (data analyst, data
+  engineer, data scientist, machine learning engineer, AI engineer, analytics
+  engineer). These are hard-coded in the stage runners because the whole project
+  compares *these* roles.
+- **Types** (Stage D). The nine concept types (language, library, tool, method,
+  knowledge_area, practice, transversal_skill, compliance, industry_context)
+  were chosen because they are the meaningful distinctions **between data/AI
+  skills** — separating, say, a *library* (pandas) from a *method* (regression)
+  from a *tool* (Tableau).
+- **Categories** (Stage E). The 27-category taxonomy in
+  `taxonomy/categories.yaml` is hand-authored to carve up the **data/AI skill
+  space** (cloud platforms, ML frameworks, data modelling, and so on). It is a
+  worked example, not a universal ontology.
+- **Facets** (Stage G). All four facets are explicitly an **AI lens** —
+  AI-relatedness, AI wave, AI workflow layer, and AI vendor ecosystem. They only
+  make sense for this domain and encode judgement calls about what counts as
+  "core AI" versus "AI-adjacent" in data-science hiring.
+
+To apply the pipeline elsewhere, you replace this domain content (occupations,
+taxonomy, facets) — the *machinery* around it is general. See
+[`RUN.md`](RUN.md), "Adapting to your own data".
+
+## Corpus (the worked example)
+
+- ~3,200 job ads across the six data/AI occupations above.
+- Two snapshots: 2021 (the three roles that existed in volume then) and 2026 (all
+  six). The published graph uses 2026.
 - Every figure is computed **per occupation-year cell** — never pooled across
   roles.
 
 ## Stages
 
 **A — Normalisation.** Raw skill surface forms from the ads are normalised
-(casing, punctuation, spelling variants). ~15,000 surface forms → ~14,800
-distinct normalised forms. Rules live in versioned config, not code.
+(casing, punctuation, spelling variants). Rules live in versioned config, not
+code.
 
-**B — Blocking.** Candidate duplicates are found with k-nearest-neighbours over
-sentence embeddings (cosine threshold 0.88), so the merge step only compares
-plausible pairs rather than all pairs.
+**B — Blocking.** Candidate duplicate forms are found with k-nearest-neighbours
+over local sentence embeddings, so the merge step only compares plausible pairs
+rather than all pairs.
 
 **C — Semantic merge.** A language model judges which blocked forms name the same
-skill, producing ~11,300 stable *concepts*. Concept ids are derived from a label
-hash and are stable: new ads map into existing ids rather than renumbering.
+skill, producing stable *concepts*. Concept ids are derived from a label hash and
+are stable: new ads map into existing ids rather than renumbering.
 
-**D — Typing.** Each concept gets one type from a fixed set of nine (language,
-library, tool, method, knowledge_area, practice, transversal_skill, compliance,
-industry_context). Concepts without enough evidence are *held* (left untyped) and
-excluded from later meaning-bearing steps; their share of mentions is reported as
-a coverage figure.
+**D — Typing.** Each concept gets one type from the fixed data/AI set of nine
+(above). Concepts without enough evidence are *held* (left untyped) and excluded
+from later meaning-bearing steps; their share of mentions is reported as a
+coverage figure.
 
-**E — Categories.** A frozen, versioned taxonomy of 27 categories (id, label,
+**E — Categories.** The frozen, versioned data/AI taxonomy (id, label,
 definition, includes/excludes, role). Validated by a schema checker with fixture
 tests.
 
@@ -42,41 +68,41 @@ spans functions, secondary categories. Runs multiple times at temperature 0; a
 label is kept only if it recurs. Mention counts, occupation, and year are
 withheld from the request so assignment cannot be biased by prevalence.
 
-**G — Facets.** Four hand-defined facets add an AI lens over concepts:
-AI-relatedness (core_ai / ai_adjacent / ai_independent), AI wave, AI workflow
-layer, and vendor ecosystem. Classified by a language model at temperature 0 in
-batches, every row carrying provenance (`model`, `by=model`), then reviewed.
+**G — Facets.** The four hand-defined AI facets are applied over concepts,
+classified by a language model at temperature 0 in batches, every row carrying
+provenance (`model`, `by=model`), then reviewed.
 
 **Analytics — penetration.** For each cell, penetration = the share of ads that
 mention a concept. This is the node's prevalence in the graph.
 
-**Analytics — adjacency (the edges).** For every pair of concepts that co-occur
-in an ad, association-rule metrics are computed: support, confidence (both
-directions), and lift. See [`adjacency_method.md`](adjacency_method.md). Held and
-boilerplate concepts are excluded.
+**Analytics — adjacency (the edges).** For each pair of concepts that co-occur in
+an ad within a cell, a co-occurrence statistic is computed and stored with
+keep-flags. Held and boilerplate concepts are excluded. The computation lives in
+`pipeline/analytics/compute_adjacency.py`.
 
-**Export — the graph.** `graph/export_graph.py` assembles one JSON per role:
+**Export — the graph.** `pipeline/analytics/export_graph.py` assembles one JSON
+per role:
 - **Nodes** = every concept in ≥ max(3, 3% of ads) for that role (a population in
   its own right; isolated nodes are kept).
-- **Edges** = co-occurring pairs that clear the graph floor (lift > 1.3, or a hub
-  skill in ≥ 60% of ads with lift > 1.05).
+- **Edges** = co-occurring pairs that clear the keep thresholds in
+  `compute_adjacency.py`.
 
 The JSON schema is fixed by [`../schema/graph_data_contract.md`](../schema/graph_data_contract.md).
 
 ## Where the model is used, and how it is controlled
 
-Three stages call a language model: semantic merge (C), category assignment (F),
-and facet classification (G). In every case the model runs at temperature 0,
-output is recorded as model-made, and a human reviews it before use. Prevalence
-signals (mention counts, occupation, year) are withheld from assignment requests
-so the model cannot lean on how common a skill is.
+Several stages call a language model: skill extraction, semantic merge (C),
+typing (D), category assignment (F), and facet classification (G). In every case
+the model runs at temperature 0, output is recorded as model-made, and a human
+reviews it before use. Prevalence signals (mention counts, occupation, year) are
+withheld from assignment requests so the model cannot lean on how common a skill
+is.
 
-## From data to the published site
+## From data to a viewer
 
-1. `graph/compute_adjacency.py` → edges + node population.
-2. `graph/export_graph.py` → one graph JSON per role + an index.
-3. A publish step copies those JSON files into the portfolio website (a
-   Next.js + Sigma.js viewer) and rebuilds it.
+1. `pipeline/analytics/compute_adjacency.py` → edges + node population.
+2. `pipeline/analytics/export_graph.py` → one graph JSON per role + an index.
+3. A viewer (for example a force-directed web app) renders those JSON files.
 
 The JSON files are the only contract between the pipeline and the viewer, which
 keeps the two independent.

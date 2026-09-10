@@ -7,9 +7,17 @@ interactive graph at
 **[reggiealderson.com/skill-graph](https://reggiealderson.com/skill-graph)**.
 
 You bring the job ads (in a documented schema) and an Anthropic API key; the
-pipeline produces the graph JSON that the viewer renders. It ships a **worked
-example** for six data/AI roles — swap the taxonomy and occupation lists for
-your own domain.
+pipeline produces the graph JSON that the viewer renders.
+
+**This is a data-science / AI domain pipeline, by design.** The method was built
+for data-science, analytics, and AI hiring, and that shows in its hand-authored
+parts: the six occupations, the nine concept **types**, the 27-category
+**taxonomy** (`taxonomy/categories.yaml`), and the four **AI facets**
+(`taxonomy/facets.yaml`) all encode judgement calls about *data/AI* skills — for
+example what separates a *library* from a *method*, or what counts as "core AI"
+versus "AI-adjacent". They ship as a **worked example**. The machinery around
+them is general: to use another field, you swap this domain content (see
+[`docs/RUN.md`](docs/RUN.md), "Adapting to your own data").
 
 > The raw job-ad dataset is **not** included and never leaves the pipeline;
 > outputs are concept-level (skill labels + counts), never ad text.
@@ -20,8 +28,8 @@ your own domain.
   (share of the role's ads), type (language, library, tool, method, …), and AI
   facets. A skill that is common but does not co-occur tightly is kept as an
   isolated node.
-- **Edges** — skill pairs demanded together more than chance predicts
-  (association-rule co-occurrence: support, confidence, lift).
+- **Edges** — skill pairs that are demanded together more than chance predicts,
+  weighted by a per-cell co-occurrence statistic.
 
 ## Quick start
 
@@ -38,20 +46,38 @@ Full command sequence: **[`docs/RUN.md`](docs/RUN.md)**.
 
 ## The pipeline
 
-Job ads → skill extraction → normalise → block (local embeddings) → semantic
-merge into stable concepts → typing → category assignment → AI facets →
-per-role penetration and co-occurrence → graph JSON.
+Each stage is deterministic and versioned. LLM stages run at temperature 0 and
+their output is recorded as model-made and meant for human review; blocking
+embeds locally (`intfloat/e5-small-v2`), no embedding API.
 
-- Overview: [`docs/pipeline_overview.md`](docs/pipeline_overview.md)
-- Co-occurrence method (support/confidence/lift, the hub clause):
-  [`docs/adjacency_method.md`](docs/adjacency_method.md)
+1. **Skill extraction** *(LLM)* — read the skills mentioned in each ad's
+   description.
+2. **Normalisation** — fold casing, punctuation, and spelling variants of each
+   skill surface form. Rules live in `config/`, never in code.
+3. **Blocking** *(local embeddings)* — group plausibly-duplicate forms with
+   nearest-neighbour search, so the merge step compares only likely pairs.
+4. **Semantic merge** *(LLM)* — decide which forms name the same skill, producing
+   stable *concepts* (hash-derived ids; new ads reuse existing ids).
+5. **Typing** *(LLM)* — assign each concept one of nine data/AI types (language,
+   library, tool, method, knowledge_area, …).
+6. **Category assignment** *(LLM)* — place each concept in the domain taxonomy
+   (`taxonomy/categories.yaml`); prevalence signals withheld so counts can't bias
+   it.
+7. **AI facets** *(LLM)* — apply the four AI facets (`taxonomy/facets.yaml`):
+   AI-relatedness, wave, workflow layer, vendor ecosystem.
+8. **Penetration** — per role, the share of ads mentioning each concept (the
+   node's prevalence).
+9. **Adjacency** — a per-cell co-occurrence statistic for each skill pair (the
+   edge weight).
+10. **Graph export** — assemble one JSON per role: nodes (the concept
+    population) + edges (pairs that clear the keep thresholds).
+
+Full detail — including how the method is grounded in the data-science domain —
+is in **[`docs/pipeline_overview.md`](docs/pipeline_overview.md)**.
+
 - Input schema: [`schema/input_job_ads.md`](schema/input_job_ads.md)
 - Output schema: [`schema/graph_data_contract.md`](schema/graph_data_contract.md)
-
-Four LLM stages (extraction, merge, typing, assignment, facets) call the
-Anthropic API; every model output is recorded as model-made and is meant to be
-human-reviewed. Blocking embeds locally (`intfloat/e5-small-v2`) — no embedding
-API.
+- How to run: [`docs/RUN.md`](docs/RUN.md)
 
 ## Layout
 

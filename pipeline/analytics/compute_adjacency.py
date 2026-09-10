@@ -1,27 +1,13 @@
-"""Stage 4a — skill adjacency (association-rule co-occurrence) per cell.
+"""Stage 4a — per-cell skill co-occurrence, for graph edges.
 
-For every occupation-year cell, for every concept pair that co-occurs in the
-same ad, compute:
-  count_a, count_b, count_ab, support_a, support_b, support_ab,
-  conf_ab, conf_ba, lift, geo_mean_conf (edge weight).
+For every occupation-year cell, computes a co-occurrence statistic for each
+concept pair that appears together in an ad, and stores it with two pass/keep
+flags so downstream steps can select the pairs they need:
+  passes_graph    — used to build the 2026 knowledge graph edges.
+  passes_analysis — a stricter selection used by other analysis.
 
-Concepts excluded: held (no type) and boilerplate (primary_category =
-cat_generic_field_reference) — no meaning for a graph.
-
-Floors (flags, not filters — both are stored so either use can select):
-  passes_graph    : year=2026 AND count_ab >= max(3, 3% of ads) AND
-                    ( lift > 1.3
-                      OR (a hub skill — support >= 60% — with lift > 1.05) )
-  passes_analysis : count_ab >= max(5, 5% of ads) AND count_a>=5 AND count_b>=5
-                    AND lift > 1   (both years; used by replacement analysis)
-
-The hub clause exists because lift has a ceiling of 1/support: a near-universal
-skill (e.g. Python in 84% of data-scientist ads) cannot reach lift 1.3 no matter
-how tightly it pairs. Without the clause the most defining skill of a role is
-structurally excluded. The clause relaxes only the lift bar, and only for skills
-in >= 60% of ads, so ordinary pairs stay de-cluttered.
-
-Only pairs that pass at least one floor are written.
+Thresholds for both flags are the module constants below. Held concepts (no
+type) and boilerplate concepts are excluded — they carry no analytical meaning.
 
 Nodes are a population in their own right, not derived from edges: a concept is a
 graph node for a 2026 cell if it appears in >= max(3, 3% of ads) there. A node
@@ -35,9 +21,9 @@ from itertools import combinations
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 A = os.path.join(ROOT, "data/analytics")
 BOILERPLATE = "cat_generic_field_reference"
-GRAPH_LIFT = 1.3    # graph floor lift (raised from 1.0 to de-clutter the graph)
-HUB_SUPPORT = 0.60  # a skill in >= this share of ads is a hub (lift-ceiling relief)
-HUB_LIFT = 1.05     # relaxed lift bar a hub edge must still clear
+GRAPH_LIFT = 1.3    # graph keep threshold (de-clutters common-but-unrelated pairs)
+HUB_SUPPORT = 0.60  # a concept in >= this share of ads gets the relaxed threshold
+HUB_LIFT = 1.05     # relaxed threshold a hub pair must still clear
 
 
 def main():
