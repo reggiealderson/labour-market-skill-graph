@@ -1,0 +1,35 @@
+{
+  "year": "2026",
+  "occupations": [
+    {
+      "occupation": "ai_engineer",
+      "nodes": 145,
+      "edges": 541
+    },
+    {
+      "occupation": "analytics_engineer",
+      "nodes": 100,
+      "edges": 336
+    },
+    {
+      "occupation": "data_analyst",
+      "nodes": 65,
+      "edges": 109
+    },
+    {
+      "occupation": "data_engineer",
+      "nodes": 125,
+      "edges": 410
+    },
+    {
+      "occupation": "data_scientist",
+      "nodes": 113,
+      "edges": 367
+    },
+    {
+      "occupation": "machine_learning_engineer",
+      "nodes": 133,
+      "edges": 402
+    }
+  ]
+}
